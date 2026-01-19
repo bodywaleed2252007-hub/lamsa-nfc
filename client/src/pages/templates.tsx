@@ -45,6 +45,33 @@ export default function Templates() {
             image="https://images.unsplash.com/photo-1502014822147-1aed80671e0a?q=80&w=2541&auto=format&fit=crop"
              color="from-pink-500 to-orange-500"
           />
+
+          {/* Template 4 - Neon Cyberpunk */}
+          <TemplateCard 
+            id="neon" 
+            name="نيون سايبر" 
+            description="تصميم مستقبلي عالي التباين مع ألوان النيون"
+            image="https://images.unsplash.com/photo-1535295972055-1c762f4483e5?q=80&w=2581&auto=format&fit=crop"
+             color="from-green-400 to-purple-600"
+          />
+
+          {/* Template 5 - Soft Pastel */}
+          <TemplateCard 
+            id="pastel" 
+            name="ناعم هادئ" 
+            description="ألوان باستيل هادئة ومريحة للعين"
+            image="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=2670&auto=format&fit=crop"
+             color="from-blue-200 to-pink-200"
+          />
+
+          {/* Template 6 - Professional */}
+          <TemplateCard 
+            id="professional" 
+            name="احترافي رسمي" 
+            description="تصميم كلاسيكي مناسب لرجال الأعمال"
+            image="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2670&auto=format&fit=crop"
+             color="from-slate-700 to-slate-900"
+          />
         </div>
       </div>
     </div>

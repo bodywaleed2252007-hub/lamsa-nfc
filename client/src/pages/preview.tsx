@@ -28,6 +28,30 @@ export default function Preview() {
           textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-orange-400",
           linkCard: "bg-white/10 hover:bg-white/20 border-white/10"
         };
+      case 'neon':
+        return {
+          container: "bg-black text-white",
+          card: "bg-black border-2 border-[#00ff9d] shadow-[0_0_20px_rgba(0,255,157,0.3)]",
+          button: "bg-[#00ff9d] text-black hover:bg-[#00ff9d]/80 font-mono tracking-tighter uppercase",
+          textGradient: "text-[#00ff9d] drop-shadow-[0_0_5px_rgba(0,255,157,0.5)] font-mono",
+          linkCard: "bg-black border border-[#00ff9d]/50 hover:bg-[#00ff9d]/10 hover:border-[#00ff9d]"
+        };
+      case 'pastel':
+        return {
+          container: "bg-[#fdf2f8] text-slate-800",
+          card: "bg-white/80 backdrop-blur-xl border border-white shadow-xl shadow-pink-100",
+          button: "bg-[#fbcfe8] text-pink-900 hover:bg-[#f9a8d4]",
+          textGradient: "text-slate-800",
+          linkCard: "bg-white/60 hover:bg-white border border-pink-100 hover:border-pink-200"
+        };
+      case 'professional':
+        return {
+          container: "bg-slate-900 text-white",
+          card: "bg-slate-800 border-t-4 border-t-blue-500 shadow-2xl",
+          button: "bg-blue-600 text-white hover:bg-blue-700 rounded-md",
+          textGradient: "text-white",
+          linkCard: "bg-slate-700 hover:bg-slate-600 border-l-2 border-l-transparent hover:border-l-blue-400 rounded-r-md rounded-l-none transition-all"
+        };
       default: // glass (Updated to match the screenshot provided)
         return {
           container: "bg-[#030303] text-white",
