@@ -72,6 +72,15 @@ export default function Templates() {
             image="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2670&auto=format&fit=crop"
              color="from-slate-700 to-slate-900"
           />
+
+          {/* Template 7 - Stranger Things */}
+          <TemplateCard 
+            id="stranger" 
+            name="Stranger Things" 
+            description="تصميم مستوحى من عالم سترينجر ثينقز"
+            image="/stranger-things.jpg"
+             color="from-red-900 to-black"
+          />
         </div>
       </div>
     </div>

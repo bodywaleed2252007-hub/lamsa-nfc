@@ -52,6 +52,14 @@ export default function Preview() {
           textGradient: "text-white",
           linkCard: "bg-slate-700 hover:bg-slate-600 border-l-2 border-l-transparent hover:border-l-blue-400 rounded-r-md rounded-l-none transition-all"
         };
+      case 'stranger':
+        return {
+          container: "bg-[#0a0a0a] text-red-50",
+          card: "bg-black/80 border border-red-900/30 shadow-[0_0_50px_-10px_rgba(220,38,38,0.3)]",
+          button: "bg-red-700 hover:bg-red-600 text-white font-serif tracking-wider",
+          textGradient: "text-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]",
+          linkCard: "bg-black/60 border border-red-900/20 hover:border-red-600/50 hover:bg-red-950/30"
+        };
       default: // glass (Updated to match the screenshot provided)
         return {
           container: "bg-[#030303] text-white",
@@ -107,6 +115,19 @@ export default function Preview() {
             {/* Subtle bottom glow */}
             <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[40%] bg-blue-900/10 rounded-full blur-[60px] pointer-events-none" />
           </>
+        )}
+
+        {/* Stranger Things Aura Background */}
+        {profile.theme === 'stranger' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[60%] opacity-60 mix-blend-screen pointer-events-none">
+                  <img src="/stranger-things.jpg" alt="aura" className="w-full h-full object-cover mask-image-gradient" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 inset-x-0 h-60 bg-red-600/20 blur-[100px] pointer-events-none z-0" />
+           </>
         )}
 
         {/* Profile Section */}
