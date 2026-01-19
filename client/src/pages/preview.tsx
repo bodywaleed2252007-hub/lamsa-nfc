@@ -1,13 +1,42 @@
 import { motion } from "framer-motion";
-import { ExternalLink, Sparkles, QrCode } from "lucide-react";
-import { useProfile, SocialLink } from "@/lib/store";
+import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check } from "lucide-react";
+import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { decodeProfileData, encodeProfileData } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Preview() {
-  const { profile } = useProfile();
+  const { profile, updateProfile } = useProfile();
   const [location] = useLocation();
   const isEmbedded = location.includes("embedded=true");
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  // Check for data param in URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const dataParam = searchParams.get('data');
+    if (dataParam) {
+      const decoded = decodeProfileData(dataParam);
+      if (decoded) {
+        updateProfile(decoded);
+      }
+    }
+  }, []);
+
+  const handleShare = () => {
+    const encoded = encodeProfileData(profile);
+    const url = `${window.location.origin}/preview?data=${encoded}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast({
+      title: "تم نسخ الرابط!",
+      description: "يمكنك الآن مشاركة هذا الرابط أو ربطه ببطاقة NFC.",
+    });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Determine styles based on theme
   const getThemeStyles = () => {
@@ -118,10 +147,12 @@ export default function Preview() {
           <Button variant="outline" size="sm" onClick={() => window.history.back()}>
             عودة للتعديل
           </Button>
-          <Button className="gap-2 bg-green-500 hover:bg-green-600 text-white">
-            <QrCode className="w-4 h-4" />
-            طباعة كود NFC
-          </Button>
+          <div className="flex gap-2">
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleShare}>
+              {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              نسخ رابط الكارت
+            </Button>
+          </div>
         </div>
       )}
 
