@@ -134,16 +134,16 @@ export default function Preview() {
             href="https://www.instagram.com/bod4681/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 group relative flex items-center justify-center gap-2 w-full p-4 rounded-full bg-white text-black font-bold text-sm shadow-xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+            className="mt-4 group relative flex items-center justify-center gap-2 w-full py-2.5 rounded-full bg-white text-black font-bold text-xs shadow-xl hover:scale-105 transition-transform duration-300 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse" />
+            <Sparkles className="w-3 h-3 text-yellow-500 animate-pulse" />
             <span>Buy your own card</span>
           </motion.a>
         </motion.div>
       </motion.main>
       
       <footer className="mt-8 text-xs text-white/20 font-medium">
-        Designed with Replit
+        Designed by lamsa
       </footer>
     </div>
   );
