@@ -17,21 +17,24 @@ export default function Preview() {
           container: "bg-black text-white",
           card: "bg-zinc-900 border border-zinc-800",
           button: "bg-white text-black hover:bg-zinc-200",
-          textGradient: "text-white"
+          textGradient: "text-white",
+          linkCard: "bg-zinc-800 border-zinc-700 hover:bg-zinc-700"
         };
       case 'creative':
         return {
           container: "bg-gradient-to-br from-pink-900 via-purple-900 to-orange-900",
           card: "bg-white/10 backdrop-blur-md border border-white/20",
           button: "bg-gradient-to-r from-pink-500 to-orange-500 text-white",
-          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-orange-400"
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-orange-400",
+          linkCard: "bg-white/10 hover:bg-white/20 border-white/10"
         };
-      default: // glass
+      default: // glass (Updated to match the screenshot provided)
         return {
-          container: "bg-background",
-          card: "glass-card border border-white/5",
-          button: "bg-primary text-primary-foreground",
-          textGradient: "bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70"
+          container: "bg-[#030303] text-white",
+          card: "bg-[#0A0A0A] border border-white/5 shadow-2xl",
+          button: "bg-white text-black hover:scale-105 transition-transform",
+          textGradient: "text-white",
+          linkCard: "bg-[#111111] hover:bg-[#1A1A1A] border border-[#222]"
         };
     }
   };
@@ -70,31 +73,34 @@ export default function Preview() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full max-w-md rounded-3xl p-6 md:p-8 relative overflow-hidden ${theme.card} ${!isEmbedded ? 'mt-16' : ''}`}
+        className={`w-full max-w-md rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden ${theme.card} ${!isEmbedded ? 'mt-16' : ''}`}
       >
-        {/* Background blobs for glass theme */}
+        {/* Background blobs for glass theme - customized for the screenshot look */}
         {profile.theme === 'glass' && (
           <>
-            <div className="absolute -top-20 -left-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-secondary/20 rounded-full blur-3xl pointer-events-none" />
+            {/* Top purple glow */}
+            <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[120%] h-[50%] bg-[#5b21b6]/20 rounded-full blur-[80px] pointer-events-none" />
+            {/* Subtle bottom glow */}
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[40%] bg-blue-900/10 rounded-full blur-[60px] pointer-events-none" />
           </>
         )}
 
         {/* Profile Section */}
-        <div className="relative z-10 flex flex-col items-center mb-8">
+        <div className="relative z-10 flex flex-col items-center mb-10">
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
             className="relative group"
           >
+            {/* Profile Glow Ring */}
             {profile.theme === 'glass' && (
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary to-secondary rounded-full blur opacity-75 animate-pulse" />
+              <div className="absolute -inset-1 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-full blur-md opacity-70 animate-pulse" />
             )}
             <img 
               src={profile.avatarUrl} 
               alt={profile.name} 
-              className="w-28 h-28 rounded-full border-4 border-white/10 relative z-10 object-cover shadow-2xl bg-zinc-800"
+              className="w-28 h-28 rounded-full border-2 border-white/10 relative z-10 object-cover bg-zinc-800"
             />
           </motion.div>
           
@@ -102,12 +108,12 @@ export default function Preview() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-center mt-4"
+            className="text-center mt-5 space-y-1"
           >
-            <h1 className={`text-2xl font-bold ${theme.textGradient}`}>
+            <h1 className={`text-2xl font-bold tracking-tight ${theme.textGradient}`}>
               {profile.name}
             </h1>
-            <p className="text-sm text-white/60 mt-1 font-medium tracking-wide">
+            <p className="text-sm text-gray-400 font-medium">
               {profile.bio}
             </p>
           </motion.div>
@@ -124,7 +130,7 @@ export default function Preview() {
             <LinkCard 
               key={idx}
               link={link}
-              theme={profile.theme}
+              cardStyle={theme.linkCard}
             />
           ))}
 
@@ -134,10 +140,10 @@ export default function Preview() {
             href="https://www.instagram.com/bod4681/"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 group relative flex items-center justify-center gap-2 w-full py-2.5 rounded-full bg-white text-black font-bold text-xs shadow-xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+            className="mt-6 group relative flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-white text-black font-bold text-sm shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-transform duration-300 cursor-pointer"
           >
-            <Sparkles className="w-3 h-3 text-yellow-500 animate-pulse" />
-            <span>Buy your own card</span>
+            <Sparkles className="w-4 h-4 text-purple-600 animate-pulse" />
+            <span>Get your own card</span>
           </motion.a>
         </motion.div>
       </motion.main>
@@ -149,7 +155,7 @@ export default function Preview() {
   );
 }
 
-function LinkCard({ link, theme }: { link: SocialLink, theme: string }) {
+function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string }) {
   const item = {
     hidden: { opacity: 0, x: -20 },
     show: { opacity: 1, x: 0 }
@@ -170,31 +176,25 @@ function LinkCard({ link, theme }: { link: SocialLink, theme: string }) {
     return map[link.platform] || map.website;
   };
 
-  // Determine card style based on theme
-  let cardStyle = "glass-card border-white/5";
-  if (theme === 'minimal') cardStyle = "bg-zinc-800 border-zinc-700 hover:bg-zinc-700";
-  if (theme === 'creative') cardStyle = "bg-white/10 hover:bg-white/20 border-white/10";
-
   return (
     <motion.a
       variants={item}
       href={link.url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group flex items-center gap-4 p-3 rounded-2xl border relative overflow-hidden transition-all duration-300 ${cardStyle}`}
+      className={`group flex items-center gap-4 p-4 rounded-2xl relative overflow-hidden transition-all duration-300 ${cardStyle}`}
     >
-      <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-        <img src={getIcon(link.platform)} alt={link.platform} className="w-6 h-6 object-contain" />
-      </div>
-      
-      <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-sm font-bold text-white flex items-center gap-2">
-          {link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
-          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+      <div className="flex-1 flex flex-col min-w-0 text-right">
+        <span className="text-sm font-bold text-white flex items-center justify-end gap-2">
+           {link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}
         </span>
-        <span className="text-xs text-white/60 truncate font-medium">
+        <span className="text-xs text-gray-400 truncate font-medium dir-rtl">
           {link.handle}
         </span>
+      </div>
+
+      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+        <img src={getIcon(link.platform)} alt={link.platform} className="w-6 h-6 object-contain" />
       </div>
     </motion.a>
   );
