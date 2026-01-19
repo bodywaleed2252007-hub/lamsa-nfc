@@ -60,6 +60,30 @@ export default function Preview() {
           textGradient: "text-red-500 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]",
           linkCard: "bg-black/60 border border-red-900/20 hover:border-red-600/50 hover:bg-red-950/30"
         };
+      case 'breakingbad':
+        return {
+          container: "bg-[#0f1f0f] text-yellow-50",
+          card: "bg-green-950/80 border border-yellow-600/30 shadow-[0_0_50px_-10px_rgba(202,138,4,0.3)]",
+          button: "bg-yellow-600 hover:bg-yellow-700 text-black font-bold tracking-widest uppercase",
+          textGradient: "text-yellow-500 drop-shadow-[0_0_5px_rgba(202,138,4,0.8)]",
+          linkCard: "bg-black/60 border border-green-900/40 hover:border-yellow-600/50 hover:bg-green-900/30"
+        };
+      case 'got':
+        return {
+          container: "bg-[#0a0a0c] text-slate-300",
+          card: "bg-slate-900/90 border border-slate-600/50 shadow-[0_0_50px_-10px_rgba(148,163,184,0.2)]",
+          button: "bg-slate-700 hover:bg-slate-600 text-slate-100 font-serif border border-slate-500",
+          textGradient: "text-slate-200 font-serif tracking-widest uppercase",
+          linkCard: "bg-slate-950/80 border border-slate-700 hover:border-slate-400 hover:bg-slate-800/50"
+        };
+      case 'prisonbreak':
+        return {
+          container: "bg-[#0f172a] text-blue-100",
+          card: "bg-slate-900/80 border border-blue-500/30 shadow-[0_0_50px_-10px_rgba(59,130,246,0.3)] backdrop-blur-sm",
+          button: "bg-blue-900 hover:bg-blue-800 text-white font-mono tracking-tighter border border-blue-500/50",
+          textGradient: "text-blue-400 font-mono tracking-widest",
+          linkCard: "bg-slate-950/60 border border-blue-900/50 hover:border-blue-500/50 hover:bg-blue-900/20"
+        };
       default: // glass (Updated to match the screenshot provided)
         return {
           container: "bg-[#030303] text-white",
@@ -127,6 +151,50 @@ export default function Preview() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent z-10" />
              </div>
              <div className="absolute -top-20 inset-x-0 h-60 bg-red-600/20 blur-[100px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Breaking Bad Aura */}
+        {profile.theme === 'breakingbad' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[70%] opacity-40 mix-blend-overlay pointer-events-none">
+                  <img src="/breaking-bad.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f1f0f] via-[#0f1f0f]/90 to-transparent z-10" />
+             </div>
+             {/* Chemical smoke effect */}
+             <div className="absolute -top-20 -left-20 w-60 h-60 bg-yellow-600/20 rounded-full blur-[80px] pointer-events-none z-0 mix-blend-color-dodge" />
+             <div className="absolute top-40 -right-20 w-60 h-60 bg-green-700/20 rounded-full blur-[80px] pointer-events-none z-0 mix-blend-color-dodge" />
+           </>
+        )}
+
+        {/* GOT Aura */}
+        {profile.theme === 'got' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[80%] opacity-50 mix-blend-luminosity pointer-events-none">
+                  <img src="/game-of-thrones.jpg" alt="background" className="w-full h-full object-cover grayscale" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent z-10" />
+             </div>
+             {/* Winter mist effect */}
+             <div className="absolute inset-0 bg-slate-200/5 mix-blend-overlay z-0 pointer-events-none" />
+             <div className="absolute -top-10 inset-x-0 h-40 bg-slate-400/10 blur-[60px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Prison Break Aura */}
+        {profile.theme === 'prisonbreak' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[70%] opacity-40 mix-blend-hard-light pointer-events-none">
+                  <img src="/prison-break.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/90 to-transparent z-10" />
+             </div>
+             {/* Blueprint/Grid effect overlay could go here, simulating with lines if needed, but keeping simple for now */}
+             <div className="absolute top-0 right-0 w-full h-full bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0" />
            </>
         )}
 

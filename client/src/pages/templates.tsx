@@ -81,6 +81,33 @@ export default function Templates() {
             image="/stranger-things.jpg"
              color="from-red-900 to-black"
           />
+
+          {/* Template 8 - Breaking Bad */}
+          <TemplateCard 
+            id="breakingbad" 
+            name="Breaking Bad" 
+            description="تصميم كيميائي باللون الأخضر والأصفر"
+            image="/breaking-bad.jpg"
+             color="from-green-700 to-yellow-600"
+          />
+
+          {/* Template 9 - Game of Thrones */}
+          <TemplateCard 
+            id="got" 
+            name="Game of Thrones" 
+            description="الشتاء قادم - تصميم حديدي بارد"
+            image="/game-of-thrones.jpg"
+             color="from-slate-800 to-slate-950"
+          />
+
+          {/* Template 10 - Prison Break */}
+          <TemplateCard 
+            id="prisonbreak" 
+            name="Prison Break" 
+            description="تصميم الهروب الكبير"
+            image="/prison-break.jpg"
+             color="from-blue-900 to-slate-800"
+          />
         </div>
       </div>
     </div>
