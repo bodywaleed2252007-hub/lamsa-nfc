@@ -278,23 +278,24 @@ export default function Preview() {
             />
           ))}
 
-          {/* Buy Your Own Card */}
-          <motion.a 
-            variants={item}
-            href="https://www.instagram.com/bod4681/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-6 group relative flex items-center justify-center gap-2 w-full py-3.5 rounded-full bg-white text-black font-bold text-sm shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-transform duration-300 cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-purple-600 animate-pulse" />
-            <span>Get your own card</span>
-          </motion.a>
+          {/* Buy Your Own Card - Moved to footer */}
         </motion.div>
       </motion.main>
       
-      <footer className="mt-8 text-xs text-white/20 font-medium">
-        Designed by lamsa
-      </footer>
+      <div className="mt-8 flex flex-col items-center gap-2">
+        <a 
+          href="https://www.instagram.com/bod4681/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-white/20 font-medium hover:text-white/40 transition-colors flex items-center gap-1"
+        >
+          <Sparkles className="w-3 h-3" />
+          <span>GET YOUR OWN CARD</span>
+        </a>
+        <footer className="text-xs text-white/20 font-medium">
+          Designed by lamsa
+        </footer>
+      </div>
     </div>
   );
 }
