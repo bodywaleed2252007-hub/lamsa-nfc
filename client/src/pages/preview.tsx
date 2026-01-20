@@ -28,7 +28,7 @@ export default function Preview() {
 
   const handleShare = () => {
     const encoded = encodeProfileData(profile);
-    const url = `${window.location.origin}/preview?data=${encoded}`;
+    const url = `${window.location.origin}/preview?data=${encoded}&embedded=true`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
