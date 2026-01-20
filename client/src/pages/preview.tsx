@@ -10,9 +10,11 @@ import { useToast } from "@/hooks/use-toast";
 export default function Preview() {
   const { profile, updateProfile } = useProfile();
   const [location] = useLocation();
-  const isEmbedded = location.includes("embedded=true");
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  
+  // Check if embedded mode from URL params
+  const isEmbedded = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === 'true';
 
   // Check for data param in URL
   useEffect(() => {
