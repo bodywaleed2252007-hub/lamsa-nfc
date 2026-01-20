@@ -108,6 +108,42 @@ export default function Templates() {
             image="/prison-break.jpg"
              color="from-blue-900 to-slate-800"
           />
+
+          {/* Template 11 - Jujutsu Kaisen */}
+          <TemplateCard 
+            id="jujutsu" 
+            name="Jujutsu Kaisen" 
+            description="تصميم أنمي مستوحى من جوجو"
+            image="/jujutsu.jpg"
+             color="from-pink-600 to-purple-900"
+          />
+
+          {/* Template 12 - Lo-Fi */}
+          <TemplateCard 
+            id="lofi" 
+            name="Lo-Fi Aesthetic" 
+            description="أجواء هادئة ومريحة"
+            image="/lofi.jpg"
+             color="from-indigo-900 to-purple-800"
+          />
+
+          {/* Template 13 - Sunrise */}
+          <TemplateCard 
+            id="sunrise" 
+            name="Sunrise Adventure" 
+            description="شروق الشمس والمغامرة"
+            image="/sunrise.jpg"
+             color="from-orange-400 to-teal-600"
+          />
+
+          {/* Template 14 - Minimal Dark */}
+          <TemplateCard 
+            id="eclipse" 
+            name="Eclipse" 
+            description="تصميم كوني أنيق"
+            image="/minimal-dark.jpg"
+             color="from-slate-900 to-blue-950"
+          />
         </div>
       </div>
     </div>

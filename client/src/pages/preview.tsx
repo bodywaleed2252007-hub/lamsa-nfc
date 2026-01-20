@@ -113,6 +113,38 @@ export default function Preview() {
           textGradient: "text-blue-400 font-mono tracking-widest",
           linkCard: "bg-slate-950/60 border border-blue-900/50 hover:border-blue-500/50 hover:bg-blue-900/20"
         };
+      case 'jujutsu':
+        return {
+          container: "bg-[#1a0a1f] text-pink-50",
+          card: "bg-purple-950/80 border border-pink-500/30 shadow-[0_0_60px_-10px_rgba(236,72,153,0.4)] backdrop-blur-sm",
+          button: "bg-pink-600 hover:bg-pink-500 text-white font-bold tracking-wide",
+          textGradient: "text-pink-400 drop-shadow-[0_0_15px_rgba(236,72,153,0.8)]",
+          linkCard: "bg-purple-950/60 border border-pink-900/50 hover:border-pink-500/50 hover:bg-pink-900/20"
+        };
+      case 'lofi':
+        return {
+          container: "bg-[#0f0a1a] text-indigo-100",
+          card: "bg-indigo-950/70 border border-indigo-500/20 shadow-[0_0_40px_-10px_rgba(99,102,241,0.3)] backdrop-blur-md",
+          button: "bg-indigo-700 hover:bg-indigo-600 text-white rounded-xl",
+          textGradient: "text-indigo-200",
+          linkCard: "bg-indigo-950/50 border border-indigo-800/40 hover:border-indigo-500/50 hover:bg-indigo-900/30"
+        };
+      case 'sunrise':
+        return {
+          container: "bg-gradient-to-b from-[#0a1628] to-[#1a0f0a] text-orange-50",
+          card: "bg-slate-900/70 border border-orange-500/20 shadow-[0_0_50px_-10px_rgba(251,146,60,0.3)] backdrop-blur-sm",
+          button: "bg-gradient-to-r from-orange-500 to-teal-500 text-white font-bold hover:opacity-90",
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-orange-300 to-teal-300",
+          linkCard: "bg-slate-900/50 border border-orange-900/30 hover:border-orange-500/40 hover:bg-orange-900/20"
+        };
+      case 'eclipse':
+        return {
+          container: "bg-[#020208] text-slate-200",
+          card: "bg-slate-950/90 border border-slate-700/30 shadow-[0_0_80px_-20px_rgba(148,163,184,0.2)]",
+          button: "bg-slate-700 hover:bg-slate-600 text-white border border-slate-500/50",
+          textGradient: "text-slate-100",
+          linkCard: "bg-slate-950/80 border border-slate-800 hover:border-slate-600 hover:bg-slate-900/50"
+        };
       default: // glass (Updated to match the screenshot provided)
         return {
           container: "bg-[#030303] text-white",
@@ -224,8 +256,60 @@ export default function Preview() {
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/90 to-transparent z-10" />
              </div>
-             {/* Blueprint/Grid effect overlay could go here, simulating with lines if needed, but keeping simple for now */}
              <div className="absolute top-0 right-0 w-full h-full bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Jujutsu Kaisen Aura */}
+        {profile.theme === 'jujutsu' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[70%] opacity-50 mix-blend-screen pointer-events-none">
+                  <img src="/jujutsu.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#1a0a1f] via-[#1a0a1f]/90 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 inset-x-0 h-60 bg-pink-600/30 blur-[100px] pointer-events-none z-0" />
+             <div className="absolute top-40 -right-20 w-40 h-40 bg-purple-600/20 rounded-full blur-[60px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Lo-Fi Aura */}
+        {profile.theme === 'lofi' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[75%] opacity-45 mix-blend-soft-light pointer-events-none">
+                  <img src="/lofi.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0f0a1a] via-[#0f0a1a]/85 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-10 inset-x-0 h-40 bg-indigo-600/15 blur-[80px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Sunrise Aura */}
+        {profile.theme === 'sunrise' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[80%] opacity-50 mix-blend-overlay pointer-events-none">
+                  <img src="/sunrise.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a1628] via-[#0a1628]/80 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-40 bg-orange-500/20 rounded-full blur-[80px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Eclipse Aura */}
+        {profile.theme === 'eclipse' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[70%] opacity-60 mix-blend-screen pointer-events-none">
+                  <img src="/minimal-dark.jpg" alt="background" className="w-full h-full object-cover" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020208] via-[#020208]/90 to-transparent z-10" />
+             </div>
+             <div className="absolute top-20 left-1/2 -translate-x-1/2 w-60 h-60 bg-slate-400/10 rounded-full blur-[100px] pointer-events-none z-0" />
            </>
         )}
 
