@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type SocialLink = {
-  platform: 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'snapchat' | 'youtube' | 'linkedin' | 'website';
+  platform: 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'snapchat' | 'youtube' | 'linkedin' | 'website' | 'menu' | 'location';
   url: string;
   handle: string;
 };

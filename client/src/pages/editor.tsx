@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, ArrowLeft, Eye, Instagram, Facebook, Youtube, Globe, Linkedin, Phone } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Eye, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 
 const PLATFORMS = [
@@ -19,6 +19,8 @@ const PLATFORMS = [
   { id: 'youtube', name: 'YouTube', icon: Youtube },
   { id: 'linkedin', name: 'LinkedIn', icon: Linkedin },
   { id: 'website', name: 'Website', icon: Globe },
+  { id: 'menu', name: 'Menu / قائمة الطعام', icon: UtensilsCrossed },
+  { id: 'location', name: 'Location / الموقع', icon: MapPin },
 ];
 
 export default function Editor() {

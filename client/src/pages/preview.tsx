@@ -401,6 +401,8 @@ function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string })
       youtube: "https://cdn-icons-png.flaticon.com/512/1384/1384060.png",
       linkedin: "https://cdn-icons-png.flaticon.com/512/174/174857.png",
       website: "https://cdn-icons-png.flaticon.com/512/1006/1006771.png",
+      menu: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
+      location: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
     };
     return map[link.platform] || map.website;
   };
