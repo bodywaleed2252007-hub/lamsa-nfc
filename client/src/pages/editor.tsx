@@ -21,6 +21,7 @@ const PLATFORMS = [
   { id: 'website', name: 'Website', icon: Globe },
   { id: 'menu', name: 'Menu / قائمة الطعام', icon: UtensilsCrossed },
   { id: 'location', name: 'Location / الموقع', icon: MapPin },
+  { id: 'call', name: 'Call / اتصال', icon: Phone },
 ];
 
 export default function Editor() {
@@ -86,6 +87,16 @@ export default function Editor() {
                   className="bg-black/20 border-white/10 text-right ltr"
                   placeholder="https://..."
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>الدومين الخاص (اختياري)</Label>
+                <Input 
+                  value={profile.customDomain} 
+                  onChange={(e) => updateProfile({ customDomain: e.target.value })}
+                  className="bg-black/20 border-white/10 text-left ltr"
+                  placeholder="https://yourdomain.com"
+                />
+                <p className="text-xs text-white/40">لو عندك دومين خاص، الروابط هتطلع بيه</p>
               </div>
             </CardContent>
           </Card>

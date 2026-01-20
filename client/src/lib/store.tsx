@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type SocialLink = {
-  platform: 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'snapchat' | 'youtube' | 'linkedin' | 'website' | 'menu' | 'location';
+  platform: 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'snapchat' | 'youtube' | 'linkedin' | 'website' | 'menu' | 'location' | 'call';
   url: string;
   handle: string;
 };
@@ -12,6 +12,7 @@ export type ProfileData = {
   avatarUrl: string;
   links: SocialLink[];
   theme: string;
+  customDomain: string;
 };
 
 interface ProfileContextType {
@@ -27,6 +28,7 @@ const defaultProfile: ProfileData = {
   bio: "Digital Creator",
   avatarUrl: "https://github.com/shadcn.png",
   theme: "glass",
+  customDomain: "",
   links: [
     { platform: 'instagram', url: '', handle: '@username' },
   ]

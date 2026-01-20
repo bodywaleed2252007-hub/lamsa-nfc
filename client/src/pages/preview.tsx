@@ -30,7 +30,10 @@ export default function Preview() {
 
   const handleShare = () => {
     const encoded = encodeProfileData(profile);
-    const url = `${window.location.origin}/preview?data=${encoded}&embedded=true`;
+    const baseUrl = profile.customDomain && profile.customDomain.trim() !== '' 
+      ? profile.customDomain.replace(/\/$/, '') 
+      : window.location.origin;
+    const url = `${baseUrl}/preview?data=${encoded}&embedded=true`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
@@ -405,6 +408,7 @@ function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string })
       website: "https://cdn-icons-png.flaticon.com/512/1006/1006771.png",
       menu: "https://cdn-icons-png.flaticon.com/512/1046/1046784.png",
       location: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+      call: "https://cdn-icons-png.flaticon.com/512/724/724664.png",
     };
     return map[link.platform] || map.website;
   };
