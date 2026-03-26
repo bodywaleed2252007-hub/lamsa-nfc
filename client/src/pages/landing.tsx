@@ -1,16 +1,75 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { ArrowRight, Sparkles, Smartphone, Share2 } from "lucide-react";
+import { ArrowRight, Sparkles, Smartphone, Share2, LogOut, ShieldCheck, User } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/lib/auth";
 
 export default function Landing() {
+  const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col items-center justify-center p-4 overflow-hidden relative">
       {/* Background gradients */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/20 rounded-full blur-[120px]" />
+      </div>
+
+      {/* Top bar */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
+        <div />
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="button-user-menu"
+                className="text-white/70 hover:text-white gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3"
+              >
+                <User className="w-4 h-4" />
+                <span className="text-sm">{user.username}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-zinc-900 border-white/10 text-white min-w-[160px]">
+              {user.isAdmin && (
+                <>
+                  <DropdownMenuItem
+                    data-testid="menu-admin"
+                    onClick={() => setLocation("/admin")}
+                    className="text-primary hover:text-primary focus:text-primary gap-2 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    لوحة الإدارة
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                </>
+              )}
+              <DropdownMenuItem
+                data-testid="menu-logout"
+                onClick={handleLogout}
+                className="text-red-400 hover:text-red-300 focus:text-red-300 gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                تسجيل الخروج
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <div className="max-w-4xl w-full mx-auto text-center space-y-8 z-10">
