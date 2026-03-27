@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
-import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check } from "lucide-react";
+import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X } from "lucide-react";
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { decodeProfileData, encodeProfileData } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,7 +12,13 @@ export default function Preview() {
   const [location] = useLocation();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
-  
+
+  // NFC states
+  type NfcStatus = 'idle' | 'waiting' | 'writing' | 'success' | 'error' | 'unsupported';
+  const [nfcStatus, setNfcStatus] = useState<NfcStatus>('idle');
+  const [nfcMessage, setNfcMessage] = useState('');
+  const nfcAbortRef = useRef<AbortController | null>(null);
+
   // Check if embedded mode from URL params
   const isEmbedded = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === 'true';
 
@@ -28,12 +34,16 @@ export default function Preview() {
     }
   }, []);
 
-  const handleShare = () => {
+  const getShareUrl = () => {
     const encoded = encodeProfileData(profile);
     const baseUrl = profile.customDomain && profile.customDomain.trim() !== '' 
       ? profile.customDomain.replace(/\/$/, '') 
       : window.location.origin;
-    const url = `${baseUrl}/preview?data=${encoded}&embedded=true`;
+    return `${baseUrl}/preview?data=${encoded}&embedded=true`;
+  };
+
+  const handleShare = () => {
+    const url = getShareUrl();
     navigator.clipboard.writeText(url);
     setCopied(true);
     toast({
@@ -41,6 +51,51 @@ export default function Preview() {
       description: "يمكنك الآن مشاركة هذا الرابط أو ربطه ببطاقة NFC.",
     });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNfcWrite = async () => {
+    if (!('NDEFReader' in window)) {
+      setNfcStatus('unsupported');
+      setNfcMessage('جهازك لا يدعم NFC أو المتصفح لا يدعمه. استخدم Chrome على Android.');
+      return;
+    }
+
+    const url = getShareUrl();
+
+    try {
+      setNfcStatus('waiting');
+      setNfcMessage('قرّب الكارت من موبايلك...');
+
+      const abort = new AbortController();
+      nfcAbortRef.current = abort;
+
+      // @ts-ignore - Web NFC API
+      const ndef = new NDEFReader();
+      await ndef.write(
+        { records: [{ recordType: 'url', data: url }] },
+        { signal: abort.signal }
+      );
+
+      setNfcStatus('success');
+      setNfcMessage('تم الكتابة على الكارت بنجاح!');
+      toast({ title: "✅ تم!", description: "الكارت جاهز — قرّبه من أي موبايل ليفتح البطاقة." });
+      setTimeout(() => setNfcStatus('idle'), 3000);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        setNfcStatus('idle');
+        setNfcMessage('');
+      } else {
+        setNfcStatus('error');
+        setNfcMessage(err?.message || 'فشل الكتابة على الكارت');
+        setTimeout(() => setNfcStatus('idle'), 3000);
+      }
+    }
+  };
+
+  const cancelNfc = () => {
+    nfcAbortRef.current?.abort();
+    setNfcStatus('idle');
+    setNfcMessage('');
   };
 
   // Determine styles based on theme
@@ -178,26 +233,76 @@ export default function Preview() {
 
   return (
     <div className={`min-h-screen w-full flex flex-col items-center justify-center p-4 ${theme.container}`}>
-      {/* If not embedded, show a "Get NFC" banner at top */}
+      {/* If not embedded, show top action bar */}
       {!isEmbedded && (
-        <div className="fixed top-0 left-0 w-full p-4 flex justify-between items-center z-50 bg-black/50 backdrop-blur-md border-b border-white/10">
-          <Button variant="outline" size="sm" onClick={() => window.history.back()}>
-            عودة للتعديل
-          </Button>
-          <div className="flex gap-2">
-            <Button className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleShare}>
-              {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-              نسخ رابط الكارت
+        <>
+          <div className="fixed top-0 left-0 w-full p-3 flex justify-between items-center z-50 bg-black/60 backdrop-blur-md border-b border-white/10" dir="rtl">
+            <Button variant="outline" size="sm" onClick={() => window.history.back()} className="text-xs">
+              عودة للتعديل
             </Button>
+            <div className="flex gap-2">
+              {/* NFC Write Button */}
+              {nfcStatus === 'waiting' ? (
+                <Button
+                  size="sm"
+                  onClick={cancelNfc}
+                  className="gap-2 bg-orange-600 hover:bg-orange-700 text-white animate-pulse"
+                >
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  قرّب الكارت...
+                  <X className="w-3 h-3 mr-1" />
+                </Button>
+              ) : nfcStatus === 'success' ? (
+                <Button size="sm" className="gap-2 bg-green-600 text-white cursor-default">
+                  <Check className="w-4 h-4" />
+                  تم الكتابة!
+                </Button>
+              ) : nfcStatus === 'error' || nfcStatus === 'unsupported' ? (
+                <Button size="sm" onClick={handleNfcWrite} className="gap-2 bg-red-600 hover:bg-red-700 text-white">
+                  <WifiOff className="w-4 h-4" />
+                  فشل — أعد المحاولة
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleNfcWrite}
+                  data-testid="button-nfc-write"
+                  className="gap-2 bg-purple-700 hover:bg-purple-600 text-white"
+                >
+                  <Wifi className="w-4 h-4" />
+                  اكتب على الكارت
+                </Button>
+              )}
+
+              {/* Copy Link Button */}
+              <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleShare}>
+                {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                نسخ الرابط
+              </Button>
+            </div>
           </div>
-        </div>
+
+          {/* NFC Status Banner */}
+          {(nfcStatus === 'waiting' || nfcStatus === 'error' || nfcStatus === 'unsupported') && (
+            <div
+              className={`fixed top-[60px] left-0 w-full py-2 px-4 text-center text-sm z-40 ${
+                nfcStatus === 'waiting'
+                  ? 'bg-orange-900/80 text-orange-200'
+                  : 'bg-red-900/80 text-red-200'
+              }`}
+              dir="rtl"
+            >
+              {nfcMessage}
+            </div>
+          )}
+        </>
       )}
 
       <motion.main 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full max-w-md rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden ${theme.card} ${!isEmbedded ? 'mt-16' : ''}`}
+        className={`w-full max-w-md rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden ${theme.card} ${!isEmbedded ? (nfcStatus === 'waiting' || nfcStatus === 'error' || nfcStatus === 'unsupported' ? 'mt-24' : 'mt-16') : ''}`}
       >
         {/* Background blobs for glass theme - customized for the screenshot look */}
         {profile.theme === 'glass' && (
