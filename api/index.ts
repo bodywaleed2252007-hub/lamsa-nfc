@@ -66,6 +66,71 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
     }
 });
 
+app.get("/api/users", async (req: Request, res: Response) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    const admin = await storage.getUser(req.session.userId);
+    if (!admin?.isAdmin) return res.status(403).send("Forbidden");
+    
+    try {
+        const allUsers = await storage.listUsers();
+        const usersWithProfiles = await Promise.all(allUsers.map(async (u) => {
+            const profile = await storage.getProfileByUserId(u.id);
+            return {
+                id: u.id,
+                username: u.username,
+                isAdmin: u.isAdmin,
+                isActive: u.isActive,
+                profileId: profile?.id,
+                isProfileEditable: profile?.isEditable
+            };
+        }));
+        res.json(usersWithProfiles);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.post("/api/users", async (req: Request, res: Response) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    const admin = await storage.getUser(req.session.userId);
+    if (!admin?.isAdmin) return res.status(403).send("Forbidden");
+    
+    const { username, password, isAdmin, isActive } = req.body;
+    try {
+        const newUser = await storage.createUser({ username, password, isAdmin, isActive });
+        res.json(newUser);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    const admin = await storage.getUser(req.session.userId);
+    if (!admin?.isAdmin) return res.status(403).send("Forbidden");
+    
+    const updates = req.body;
+    try {
+        const updated = await storage.updateUser(req.params.id, updates);
+        res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    const admin = await storage.getUser(req.session.userId);
+    if (!admin?.isAdmin) return res.status(403).send("Forbidden");
+    
+    try {
+        await storage.deleteUser(req.params.id);
+        res.json({ success: true });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.get("/api/auth/me", async (req: Request, res: Response) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
     
@@ -82,16 +147,53 @@ app.get("/api/auth/me", async (req: Request, res: Response) => {
     }
 });
 
-// Profiles with Fallback
+// Admin toggle for editability
+app.patch("/api/profiles/:id/editable", async (req: Request, res: Response) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    try {
+        const user = await storage.getUser(req.session.userId);
+        if (!user?.isAdmin) return res.status(403).send("Forbidden");
+        
+        const { isEditable } = req.body;
+        const updated = await storage.updateProfile(req.params.id, { isEditable });
+        res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.post("/api/profiles", async (req: Request, res: Response) => {
     try {
         if (!storage) throw new Error("Storage not initialized");
         const profileData = req.body;
+        const userId = req.session?.userId;
+
+        if (!userId) return res.status(401).json({ message: "Login required" });
+
+        // Check if user already has a profile
+        const existing = await storage.getProfileByUserId(userId);
+        
+        if (existing) {
+            // Check if it's currently editable
+            if (!existing.isEditable) {
+                return res.status(403).json({ message: "التعديل مغلق حالياً، يرجى التواصل مع الإدارة" });
+            }
+            // Update existing
+            const updated = await storage.updateProfile(existing.id, {
+                ...profileData,
+                links: JSON.stringify(profileData.links || [])
+            });
+            return res.json(updated);
+        }
+
+        // Create new
         const shortId = Math.random().toString(36).substring(2, 9);
         const newProfile = await storage.createProfile({
             ...profileData,
             id: shortId,
-            links: JSON.stringify(profileData.links || [])
+            userId: userId,
+            links: JSON.stringify(profileData.links || []),
+            isEditable: true
         });
         res.json(newProfile);
     } catch (err: any) {

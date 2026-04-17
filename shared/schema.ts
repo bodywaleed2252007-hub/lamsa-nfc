@@ -20,6 +20,7 @@ export const profiles = pgTable("profiles", {
   theme: text("theme").default("glass"),
   links: text("links").notNull(), // JSON string
   customDomain: text("custom_domain"),
+  isEditable: boolean("is_editable").notNull().default(true),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -39,6 +40,7 @@ export const insertProfileSchema = createInsertSchema(profiles).pick({
   theme: true,
   links: true,
   customDomain: true,
+  isEditable: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

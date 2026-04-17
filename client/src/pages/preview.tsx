@@ -371,11 +371,11 @@ export default function Preview() {
       {/* If not embedded, show top action bar */}
       {!isEmbedded && (
         <>
-          <div className="fixed top-0 left-0 w-full p-3 flex justify-between items-center z-50 bg-black/60 backdrop-blur-md border-b border-white/10" dir="rtl">
-            <Button variant="outline" size="sm" onClick={() => window.history.back()} className="text-xs">
+          <div className="fixed top-0 left-0 w-full p-2 flex flex-wrap justify-center gap-2 z-50 bg-black/80 backdrop-blur-lg border-b border-white/10 sm:justify-between sm:p-3" dir="rtl">
+            <Button variant="outline" size="sm" onClick={() => window.history.back()} className="text-[10px] h-8 px-2 sm:text-xs sm:h-9 sm:px-4">
               عودة للتعديل
             </Button>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5 sm:gap-2">
               {/* NFC Write Button */}
               {nfcStatus === 'waiting' ? (
                 <Button
@@ -398,13 +398,13 @@ export default function Preview() {
                   فشل — أعد المحاولة
                 </Button>
               ) : (
-                <Button
+              <Button
                   size="sm"
                   onClick={handleNfcWrite}
                   data-testid="button-nfc-write"
-                  className="gap-2 bg-purple-700 hover:bg-purple-600 text-white"
+                  className="gap-1.5 bg-purple-700 hover:bg-purple-600 text-white text-[10px] h-8 px-2 sm:text-xs sm:h-9 sm:px-4 sm:gap-2"
                 >
-                  <Wifi className="w-4 h-4" />
+                  <Wifi className="w-3 h-3 sm:w-4 sm:h-4" />
                   اكتب على الكارت
                 </Button>
               )}
@@ -412,12 +412,12 @@ export default function Preview() {
               {/* Copy Link Button */}
               <Button 
                 size="sm" 
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] h-8 px-2 sm:text-xs sm:h-9 sm:px-4 sm:gap-2" 
                 onClick={handleShare}
                 disabled={isSaving}
               >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />)}
-                {isSaving ? "جاري الحفظ..." : "نسخ الرابط المختصر"}
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (copied ? <Check className="w-3 h-3 sm:w-4 sm:h-4" /> : <Share2 className="w-3 h-3 sm:w-4 sm:h-4" />)}
+                {isSaving ? "جاري..." : "نسخ الرابط"}
               </Button>
             </div>
           </div>

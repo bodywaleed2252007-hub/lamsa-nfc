@@ -45,11 +45,9 @@ import {
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 
-interface ManagedUser {
-  id: string;
-  username: string;
-  isAdmin: boolean;
   isActive: boolean;
+  profileId?: string;
+  isProfileEditable?: boolean;
 }
 
 export default function Admin() {
@@ -138,6 +136,17 @@ export default function Admin() {
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({ isActive: !u.isActive }),
+    });
+    await fetchUsers();
+  };
+
+  const toggleProfileEditable = async (u: ManagedUser) => {
+    if (!u.profileId) return;
+    await fetch(`/api/profiles/${u.profileId}/editable`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ isEditable: !u.isProfileEditable }),
     });
     await fetchUsers();
   };
@@ -411,17 +420,6 @@ export default function Admin() {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {/* Change password */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setChangePasswordUser(u)}
-                        title="تغيير كلمة المرور"
-                        className="text-yellow-400/50 hover:text-yellow-400 hover:bg-yellow-950/20 rounded-lg w-8 h-8"
-                      >
-                        <Key className="w-3.5 h-3.5" />
-                      </Button>
-
                       {/* Toggle active */}
                       <Button
                         variant="ghost"
@@ -442,6 +440,46 @@ export default function Admin() {
                           <ToggleLeft className="w-4 h-4" />
                         )}
                       </Button>
+
+                      {/* Change password */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setChangePasswordUser(u)}
+                        title="تغيير كلمة المرور"
+                        className="text-yellow-400/50 hover:text-yellow-400 hover:bg-yellow-950/20 rounded-lg w-8 h-8"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                      </Button>
+
+                      {/* Toggle active */}
+                        {u.isActive ? (
+                          <ToggleRight className="w-4 h-4" />
+                        ) : (
+                          <ToggleLeft className="w-4 h-4" />
+                        )}
+                      </Button>
+
+                      {/* Toggle Profile Editable */}
+                      {u.profileId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleProfileEditable(u)}
+                          title={u.isProfileEditable ? "قفل التعديل" : "فتح التعديل"}
+                          className={`rounded-lg w-8 h-8 ${
+                            u.isProfileEditable
+                              ? "text-blue-400 hover:text-blue-300 hover:bg-blue-950/20"
+                              : "text-amber-500 hover:text-amber-400 hover:bg-amber-950/20"
+                          }`}
+                        >
+                          {u.isProfileEditable ? (
+                            <Key className="w-4 h-4" />
+                          ) : (
+                            <Key className="w-4 h-4 opacity-50" />
+                          )}
+                        </Button>
+                      )}
 
                       {/* Delete */}
                       <AlertDialog>

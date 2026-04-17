@@ -108,14 +108,28 @@ export default function Editor() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-white/50">رابط الصورة الشخصية</Label>
-                <Input
-                  value={profile.avatarUrl}
-                  onChange={(e) => updateProfile({ avatarUrl: e.target.value })}
-                  className="bg-black/30 border-white/8 text-white text-left ltr rounded-xl h-10 text-sm placeholder:text-white/25"
-                  placeholder="https://..."
-                  dir="ltr"
-                />
+                <Label className="text-xs text-white/50">الصورة الشخصية</Label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-white/10 border border-white/10 shrink-0">
+                    <img src={profile.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                  </div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          updateProfile({ avatarUrl: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="bg-black/30 border-white/8 text-white text-xs rounded-xl h-10 cursor-pointer file:bg-primary file:text-black file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 file:font-bold"
+                  />
+                </div>
+                <p className="text-[10px] text-white/20 mt-1">اختر صورة من الجاليري (يفضل أن تكون مربعة)</p>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-white/50">الدومين الخاص <span className="text-white/25">(اختياري)</span></Label>
