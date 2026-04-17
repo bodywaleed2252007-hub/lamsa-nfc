@@ -101,27 +101,36 @@ app.get("/api/users", async (req: Request, res: Response) => {
 app.post("/api/users", async (req: Request, res: Response) => {
     if (!req.session?.userId) return res.status(401).send("Unauthorized");
     
-    let isAdmin = false;
-    if (req.session.userId === 'emergency-admin') {
-        isAdmin = true;
-    } else {
-        const user = await storage.getUser(req.session.userId);
-        isAdmin = !!user?.isAdmin;
-    }
-
-    if (!isAdmin) return res.status(403).send("Forbidden");
-    
-    const { username, password, isAdmin: newUserIsAdmin, isActive } = req.body;
     try {
-        const newUser = await storage.createUser({ 
-            username, 
-            password, 
-            isAdmin: newUserIsAdmin || false, 
-            isActive: isActive !== undefined ? isActive : true 
-        });
+        let isAdmin = false;
+        if (req.session.userId === 'emergency-admin') {
+            isAdmin = true;
+        } else {
+            const user = await Promise.race([
+                storage.getUser(req.session.userId),
+                new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout checking admin status")), 5000))
+            ]);
+            isAdmin = !!(user as any)?.isAdmin;
+        }
+
+        if (!isAdmin) return res.status(403).send("Forbidden");
+        
+        const { username, password, isAdmin: newUserIsAdmin, isActive } = req.body;
+        
+        const newUser = await Promise.race([
+            storage.createUser({ 
+                username, 
+                password, 
+                isAdmin: newUserIsAdmin || false, 
+                isActive: isActive !== undefined ? isActive : true 
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout creating user")), 8000))
+        ]);
+        
         res.json(newUser);
     } catch (e: any) {
-        res.status(500).json({ message: e.message });
+        console.error("API Error creating user:", e);
+        res.status(500).json({ message: "خطأ في السيرفر أو قاعدة البيانات: " + e.message });
     }
 });
 
