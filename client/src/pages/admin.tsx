@@ -121,7 +121,7 @@ export default function Admin() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setCreateError(err.message || "فشل إنشاء المستخدم");
+        setCreateError(err.message + (err.debug ? ` (${err.debug})` : ""));
         return;
       }
       setNewUsername("");

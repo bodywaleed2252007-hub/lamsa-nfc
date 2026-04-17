@@ -1,15 +1,20 @@
 import { motion } from "framer-motion";
 import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X } from "lucide-react";
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState, useRef } from "react";
 import { decodeProfileData, encodeProfileData } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-export default function Preview() {
+export default function Preview({ params }: { params?: { id?: string } }) {
+  const search = useSearch();
+  const searchParams = new URLSearchParams(search);
+  const id = params?.id || searchParams.get("id");
+  // Check if embedded mode from URL params
+  const isEmbedded = searchParams.get("embedded") === "true";
+  
   const { profile, updateProfile } = useProfile();
-  const [location] = useLocation();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -19,20 +24,16 @@ export default function Preview() {
   const [nfcMessage, setNfcMessage] = useState('');
   const nfcAbortRef = useRef<AbortController | null>(null);
 
-  // Check if embedded mode from URL params
-  const isEmbedded = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === 'true';
-
   const [isSaving, setIsSaving] = useState(false);
 
   // Check for data or id param in URL
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
     const dataParam = searchParams.get('data');
-    const idParam = searchParams.get('id');
+    const finalId = id; // use id from params or searchParams
 
-    if (idParam) {
+    if (finalId) {
       // Fetch from DB
-      fetch(`/api/profiles/${idParam}`)
+      fetch(`/api/profiles/${finalId}`)
         .then(res => res.json())
         .then(data => {
           if (data && data.name) {
@@ -48,7 +49,7 @@ export default function Preview() {
         updateProfile(decoded);
       }
     }
-  }, []);
+  }, [id]);
 
   const handleShare = async () => {
     setIsSaving(true);

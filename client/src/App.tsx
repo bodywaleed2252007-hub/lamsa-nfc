@@ -36,6 +36,7 @@ function Router() {
     <Switch>
       {/* Preview is always public — NFC card links must work without login */}
       <Route path="/preview" component={Preview} />
+      <Route path="/p/:id" component={Preview} />
       <Route path="/login" component={Login} />
       <Route path="/admin">
         <ProtectedRoute component={Admin} />

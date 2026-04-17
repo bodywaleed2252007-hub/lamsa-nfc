@@ -6,7 +6,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index"
+      "destination": "/api"
+    },
+    {
+      "source": "/p/(.*)",
+      "destination": "/api"
     },
     {
       "source": "/(.*)",

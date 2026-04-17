@@ -123,20 +123,21 @@ app.post("/api/users", async (req: Request, res: Response) => {
         
         const { username, password, isAdmin: newUserIsAdmin, isActive } = req.body;
         
-        const newUser = await Promise.race([
-            storage.createUser({ 
-                username, 
-                password, 
-                isAdmin: newUserIsAdmin || false, 
-                isActive: isActive !== undefined ? isActive : true 
-            }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout creating user")), 8000))
-        ]);
+        const newUser = await storage.createUser({ 
+            username, 
+            password, 
+            isAdmin: !!newUserIsAdmin, 
+            isActive: isActive !== undefined ? isActive : true 
+        });
         
+        console.log("User created successfully:", newUser.username);
         res.json(newUser);
     } catch (e: any) {
-        console.error("API Error creating user:", e);
-        res.status(500).json({ message: "خطأ في السيرفر أو قاعدة البيانات: " + e.message });
+        console.error("CRITICAL ERROR creating user:", e);
+        res.status(500).json({ 
+            message: "حدث خطأ أثناء الحفظ في قاعدة البيانات. تأكد من أن اسم المستخدم غير مكرر.",
+            debug: e.message 
+        });
     }
 });
 
