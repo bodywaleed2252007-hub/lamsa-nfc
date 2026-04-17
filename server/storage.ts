@@ -1,5 +1,5 @@
-import { eq } from "drizzle-orm";
-import { type User, type InsertUser } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
+import { type User, type InsertUser, type Profile, type InsertProfile, users, profiles } from "@shared/schema";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 const scryptAsync = promisify(scrypt);
@@ -48,15 +48,9 @@ class MemoryStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const hashed = await hashPassword(insertUser.password);
-    const user: User = {
-      id: Math.random().toString(36).substring(2, 9),
-      username: insertUser.username,
-      password: hashed,
-      isAdmin: insertUser.isAdmin ?? false,
-      isActive: insertUser.isActive ?? true,
-    };
-    this.users.set(user.id, user);
+    const id = Math.random().toString(36).substring(2, 9);
+    const user: User = { ...insertUser, id, isAdmin: !!insertUser.isAdmin, isActive: insertUser.isActive ?? true };
+    this.users.set(id, user);
     return user;
   }
 
@@ -93,7 +87,6 @@ class MemoryStorage implements IStorage {
         isAdmin: true,
         isActive: true,
       });
-      console.log("[storage] Default admin created: admin / admin123");
     }
   }
 
@@ -106,12 +99,18 @@ class MemoryStorage implements IStorage {
   }
 
   async createProfile(profile: InsertProfile): Promise<Profile> {
-    const newProfile: Profile = {
-      id: Math.random().toString(36).substring(2, 9),
-      ...profile,
+    const p: Profile = { 
+      ...profile, 
+      userId: profile.userId ?? null,
+      bio: profile.bio ?? null,
+      avatarUrl: profile.avatarUrl ?? null,
+      theme: profile.theme ?? "glass",
+      customDomain: profile.customDomain ?? null,
+      isEditable: profile.isEditable ?? true,
+      createdAt: new Date().toISOString()
     };
-    this.profiles.set(newProfile.id, newProfile);
-    return newProfile;
+    this.profiles.set(p.id, p);
+    return p;
   }
 
   async updateProfile(id: string, updates: Partial<InsertProfile>): Promise<Profile | undefined> {
@@ -127,42 +126,26 @@ class MemoryStorage implements IStorage {
 }
 
 import { drizzle } from "drizzle-orm/node-postgres";
-import pg from "pg";
-const { Pool } = pg;
+import { Pool } from "pg";
 
-// ─── PostgreSQL Storage (for production with DATABASE_URL) ───
 class DatabaseStorage implements IStorage {
   private db: any;
 
-  constructor() {
-    this.init();
-  }
-
-  private init() {
-    // Moved to lazy initialization to prevent startup crashes
-  }
-
-  private async getDb() {
+  async getDb() {
     if (this.db) return this.db;
-    
     try {
-      if (!process.env.DATABASE_URL) {
-        throw new Error("DATABASE_URL is not defined");
-      }
-      
-      console.log("[storage] Connecting to PostgreSQL (Lazy Init)...");
       const pool = new Pool({ 
         connectionString: process.env.DATABASE_URL,
         connectionTimeoutMillis: 10000,
-        ssl: true
+        ssl: {
+          rejectUnauthorized: false
+        }
       });
-      
       this.db = drizzle(pool);
-      console.log("[storage] Database connection initialized");
       return this.db;
-    } catch (e) {
-      console.error("[storage] Database initialization FAILED:", e);
-      throw e;
+    } catch (err) {
+      console.error("Database connection failed:", err);
+      throw err;
     }
   }
 
@@ -190,11 +173,15 @@ class DatabaseStorage implements IStorage {
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
     const db = await this.getDb();
-    const data: Partial<InsertUser> = { ...updates };
+    const data = { ...updates };
     if (data.password) {
       data.password = await hashPassword(data.password);
     }
-    const result = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    const result = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
     return result[0];
   }
 
@@ -205,7 +192,7 @@ class DatabaseStorage implements IStorage {
 
   async listUsers(): Promise<User[]> {
     const db = await this.getDb();
-    return db.select().from(users);
+    return await db.select().from(users);
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
@@ -213,15 +200,43 @@ class DatabaseStorage implements IStorage {
   }
 
   async ensureAdminExists(): Promise<void> {
-    const admin = await this.getUserByUsername("admin");
-    if (!admin) {
-      await this.createUser({
-        username: "admin",
-        password: "admin123",
-        isAdmin: true,
-        isActive: true,
-      });
-      console.log("[storage] Default admin created: admin / admin123");
+    try {
+      const db = await this.getDb();
+      // Ensure tables exist (Basic migration)
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        CREATE TABLE IF NOT EXISTS profiles (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id),
+          name TEXT NOT NULL,
+          bio TEXT,
+          avatar_url TEXT,
+          theme TEXT DEFAULT 'glass',
+          links TEXT NOT NULL,
+          custom_domain TEXT,
+          is_editable BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      const admin = await this.getUserByUsername("admin");
+      if (!admin) {
+        await this.createUser({
+          username: "admin",
+          password: "admin123",
+          isAdmin: true,
+          isActive: true,
+        });
+        console.log("[storage] Default admin created: admin / admin123");
+      }
+    } catch (err) {
+      console.error("[storage] Auto-migration error:", err);
     }
   }
 
@@ -245,8 +260,17 @@ class DatabaseStorage implements IStorage {
 
   async updateProfile(id: string, updates: Partial<InsertProfile>): Promise<Profile | undefined> {
     const db = await this.getDb();
-    const result = await db.update(profiles).set(updates).where(eq(profiles.id, id)).returning();
+    const result = await db
+      .update(profiles)
+      .set(updates)
+      .where(eq(profiles.id, id))
+      .returning();
     return result[0];
+  }
+
+  async deleteProfile(id: string): Promise<void> {
+    const db = await this.getDb();
+    await db.delete(profiles).where(eq(profiles.id, id));
   }
 }
 
