@@ -456,14 +456,6 @@ export default function Admin() {
                         <Key className="w-3.5 h-3.5" />
                       </Button>
 
-                      {/* Toggle active */}
-                        {u.isActive ? (
-                          <ToggleRight className="w-4 h-4" />
-                        ) : (
-                          <ToggleLeft className="w-4 h-4" />
-                        )}
-                      </Button>
-
                       {/* Toggle Profile Editable */}
                       {u.profileId && (
                         <Button
