@@ -22,11 +22,27 @@ export default function Preview() {
   // Check if embedded mode from URL params
   const isEmbedded = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('embedded') === 'true';
 
-  // Check for data param in URL
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Check for data or id param in URL
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const dataParam = searchParams.get('data');
-    if (dataParam) {
+    const idParam = searchParams.get('id');
+
+    if (idParam) {
+      // Fetch from DB
+      fetch(`/api/profiles/${idParam}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.name) {
+            updateProfile({
+              ...data,
+              links: typeof data.links === 'string' ? JSON.parse(data.links) : data.links
+            });
+          }
+        });
+    } else if (dataParam) {
       const decoded = decodeProfileData(dataParam);
       if (decoded) {
         updateProfile(decoded);
@@ -34,47 +50,52 @@ export default function Preview() {
     }
   }, []);
 
-  const getShareUrl = () => {
-    const encoded = encodeProfileData(profile);
-    const baseUrl = profile.customDomain && profile.customDomain.trim() !== '' 
-      ? profile.customDomain.replace(/\/$/, '') 
-      : window.location.origin;
-    return `${baseUrl}/preview?data=${encoded}&embedded=true`;
-  };
-
   const handleShare = async () => {
-    const url = getShareUrl();
-    
+    setIsSaving(true);
     try {
+      // 1. Save to DB first to get a short link
+      const res = await fetch("/api/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      
+      const data = await res.json();
+      
+      // 2. Generate the short URL
+      const baseUrl = window.location.origin;
+      const url = `${baseUrl}/preview?id=${data.id}&embedded=true`;
+      
+      // 3. Copy to clipboard
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(url);
       } else {
-        // Fallback for non-HTTPS environments (like local network testing on mobile)
         const textArea = document.createElement("textarea");
         textArea.value = url;
-        // Move it off-screen
         textArea.style.position = "absolute";
         textArea.style.left = "-999999px";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
-        
-        try {
-          document.execCommand('copy');
-        } catch (err) {
-          console.error("Fallback copy failed", err);
-        }
+        document.execCommand('copy');
         document.body.removeChild(textArea);
       }
       
       setCopied(true);
       toast({
-        title: "تم نسخ الرابط!",
-        description: "يمكنك الآن مشاركة هذا الرابط أو ربطه ببطاقة NFC.",
+        title: "تم إنشاء الرابط القصير!",
+        description: "يمكنك الآن مشاركته أو ربطه ببطاقة NFC.",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error("Copy failed:", err);
+      console.error("Save/Share failed:", err);
+      toast({
+        title: "خطأ",
+        description: "فشل إنشاء الرابط المختصر. جرب مرة أخرى.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -85,10 +106,20 @@ export default function Preview() {
       return;
     }
 
-    const url = getShareUrl();
+    setNfcStatus('waiting');
+    setNfcMessage('جاري تجهيز البيانات...');
 
     try {
-      setNfcStatus('waiting');
+      // 1. Save to DB first to get a short link
+      const res = await fetch("/api/profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profile),
+      });
+      const data = await res.json();
+      const baseUrl = window.location.origin;
+      const url = `${baseUrl}/preview?id=${data.id}&embedded=true`;
+
       setNfcMessage('قرّب الكارت من موبايلك...');
 
       const abort = new AbortController();
@@ -379,9 +410,14 @@ export default function Preview() {
               )}
 
               {/* Copy Link Button */}
-              <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleShare}>
-                {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                نسخ الرابط
+              <Button 
+                size="sm" 
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white" 
+                onClick={handleShare}
+                disabled={isSaving}
+              >
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />)}
+                {isSaving ? "جاري الحفظ..." : "نسخ الرابط المختصر"}
               </Button>
             </div>
           </div>

@@ -1,54 +1,94 @@
-import express from 'express';
-import cookieSession from 'cookie-session';
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+import express, { type Request, Response, NextFunction } from "express";
+import cookieSession from "cookie-session";
+import { storage } from "../server/storage";
+import { users, profiles, type InsertProfile } from "../shared/schema";
+import { eq } from "drizzle-orm";
 
-const scryptAsync = promisify(scrypt);
 const app = express();
 
 app.use(express.json());
-app.use(cookieSession({
-  name: 'session',
-  keys: [process.env.SESSION_SECRET || 'lamsa-secret-key'],
-  maxAge: 24 * 60 * 60 * 1000
-}));
+app.use(express.urlencoded({ extended: false }));
 
-// Helper functions
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
+app.use(
+  cookieSession({
+    name: 'session',
+    keys: [process.env.SESSION_SECRET || "nfc-card-secret-key-2024"],
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    secure: process.env.NODE_ENV === "production",
+    sameSite: 'lax',
+  })
+);
 
-async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
-}
-
-// Routes
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Lamsa API is alive!' });
+// Health check
+app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  
-  // Static check for testing to ensure it works
-  if ((username === 'admin' && password === 'admin123') || (username === 'lamsa' && password === '123456')) {
-    req.session!.userId = '1';
-    return res.json({ id: '1', username, isAdmin: true, isActive: true });
-  }
-
-  res.status(401).json({ message: 'بيانات الدخول غير صحيحة' });
+// Real Auth Routes
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+    const { username, password } = req.body;
+    try {
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const valid = await storage.validatePassword(user, password);
+        if (!valid) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        req.session!.userId = user.id;
+        return res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+    } catch (err: any) {
+        res.status(500).json({ message: err.message });
+    }
 });
 
-app.get('/api/auth/me', (req, res) => {
-  if (req.session?.userId) {
-    return res.json({ id: '1', username: 'admin', isAdmin: true, isActive: true });
-  }
-  res.status(401).json({ message: 'Unauthorized' });
+app.get("/api/auth/me", async (req: Request, res: Response) => {
+    if (!req.session?.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) return res.status(401).json({ message: "Not authenticated" });
+    return res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
+});
+
+app.post("/api/auth/logout", (req: Request, res: Response) => {
+    req.session = null;
+    res.json({ message: "Logged out" });
+});
+
+// Profile / Short Link Routes
+app.get("/api/profiles/:id", async (req: Request, res: Response) => {
+    try {
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Profile not found" });
+        return res.json(profile);
+    } catch (err: any) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+app.post("/api/profiles", async (req: Request, res: Response) => {
+    try {
+        const profileData = req.body;
+        // Generate a short ID if not provided
+        const shortId = Math.random().toString(36).substring(2, 9);
+        const newProfile = await storage.createProfile({
+            ...profileData,
+            id: shortId,
+            links: JSON.stringify(profileData.links || [])
+        });
+        res.json(newProfile);
+    } catch (err: any) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// Error handling
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
 });
 
 export default app;

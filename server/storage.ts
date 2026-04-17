@@ -26,6 +26,12 @@ export interface IStorage {
   listUsers(): Promise<User[]>;
   validatePassword(user: User, password: string): Promise<boolean>;
   ensureAdminExists(): Promise<void>;
+  // Profile methods
+  getProfile(id: string): Promise<Profile | undefined>;
+  getProfileByUserId(userId: string): Promise<Profile | undefined>;
+  createProfile(profile: InsertProfile): Promise<Profile>;
+  updateProfile(id: string, profile: Partial<InsertProfile>): Promise<Profile | undefined>;
+  deleteProfile(id: string): Promise<void>;
 }
 
 // ─── In-Memory Storage (for local dev without PostgreSQL) ───
@@ -89,17 +95,40 @@ class MemoryStorage implements IStorage {
       console.log("[storage] Default admin created: admin / admin123");
     }
   }
+
+  async getProfile(id: string): Promise<Profile | undefined> {
+    return this.profiles.get(id);
+  }
+
+  async getProfileByUserId(userId: string): Promise<Profile | undefined> {
+    return Array.from(this.profiles.values()).find(p => p.userId === userId);
+  }
+
+  async createProfile(profile: InsertProfile): Promise<Profile> {
+    const newProfile: Profile = {
+      id: Math.random().toString(36).substring(2, 9),
+      ...profile,
+    };
+    this.profiles.set(newProfile.id, newProfile);
+    return newProfile;
+  }
+
+  async updateProfile(id: string, updates: Partial<InsertProfile>): Promise<Profile | undefined> {
+    const profile = this.profiles.get(id);
+    if (!profile) return undefined;
+    const updated: Profile = { ...profile, ...updates };
+    this.profiles.set(id, updated);
+    return updated;
+  }
 }
 
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 const { Pool } = pg;
-import { users } from "@shared/schema";
 
 // ─── PostgreSQL Storage (for production with DATABASE_URL) ───
 class DatabaseStorage implements IStorage {
   private db: any;
-  private users_table: any;
 
   constructor() {
     this.init();
@@ -190,6 +219,30 @@ class DatabaseStorage implements IStorage {
       });
       console.log("[storage] Default admin created: admin / admin123");
     }
+  }
+
+  async getProfile(id: string): Promise<Profile | undefined> {
+    const db = await this.getDb();
+    const result = await db.select().from(profiles).where(eq(profiles.id, id));
+    return result[0];
+  }
+
+  async getProfileByUserId(userId: string): Promise<Profile | undefined> {
+    const db = await this.getDb();
+    const result = await db.select().from(profiles).where(eq(profiles.userId, userId));
+    return result[0];
+  }
+
+  async createProfile(profile: InsertProfile): Promise<Profile> {
+    const db = await this.getDb();
+    const result = await db.insert(profiles).values(profile).returning();
+    return result[0];
+  }
+
+  async updateProfile(id: string, updates: Partial<InsertProfile>): Promise<Profile | undefined> {
+    const db = await this.getDb();
+    const result = await db.update(profiles).set(updates).where(eq(profiles.id, id)).returning();
+    return result[0];
   }
 }
 

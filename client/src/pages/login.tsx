@@ -21,13 +21,10 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      // Try real login first
       await login(username, password);
       setLocation("/");
     } catch (err: any) {
-      // Bypass on failure for demo/testing
-      console.warn("Login server unavailable, entering demo mode...");
-      setLocation("/");
+      setError(err.message || "فشل تسجيل الدخول");
     } finally {
       setLoading(false);
     }
