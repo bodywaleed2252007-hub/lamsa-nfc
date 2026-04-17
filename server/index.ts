@@ -1,15 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
-import session from "express-session";
-import createMemoryStore from "memorystore";
+import cookieSession from "cookie-session";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { storage } from "./storage";
 import { createServer } from "http";
 
 const app = express();
-const httpServer = createServer(app);
-
-const MemoryStore = createMemoryStore(session);
 
 declare module "http" {
   interface IncomingMessage {
@@ -27,19 +23,27 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Use cookie-session for serverless compatibility
 app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "nfc-card-secret-key-2024",
-    resave: false,
-    saveUninitialized: false,
-    store: new MemoryStore({ checkPeriod: 86400000 }),
-    cookie: {
-      secure: false,
-      httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
+  cookieSession({
+    name: 'session',
+    keys: [process.env.SESSION_SECRET || "nfc-card-secret-key-2024"],
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    secure: process.env.NODE_ENV === "production",
+    sameSite: 'lax',
   })
 );
+
+// Passport requires this when using cookie-session to recreate the session object
+app.use(function(req, res, next) {
+    if (req.session && !req.session.regenerate) {
+        req.session.regenerate = (cb) => { cb(null) }
+    }
+    if (req.session && !req.session.save) {
+        req.session.save = (cb) => { cb(null) }
+    }
+    next()
+});
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -78,35 +82,52 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  await storage.ensureAdminExists();
-  await registerRoutes(httpServer, app);
+// Setup function
+let setupPromise: Promise<void> | null = null;
 
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+async function setupApp() {
+  if (setupPromise) return setupPromise;
+  
+  setupPromise = (async () => {
+    await storage.ensureAdminExists();
+    const httpServer = createServer(app);
+    await registerRoutes(httpServer, app);
 
-    console.error("Internal Server Error:", err);
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error("Internal Server Error:", err);
+      if (res.headersSent) return next(err);
+      return res.status(status).json({ message });
+    });
 
-    if (res.headersSent) {
-      return next(err);
+    if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
+      serveStatic(app);
     }
+    
+    return httpServer;
+  })();
+  
+  return setupPromise;
+}
 
-    return res.status(status).json({ message });
-  });
+// For Vercel Serverless
+export default async function vercelHandler(req: Request, res: Response) {
+  await setupApp();
+  return app(req, res);
+}
 
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-  }
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    { port, host: "0.0.0.0" },
-    () => {
+// For local development
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  (async () => {
+    const httpServer = await setupApp();
+    if (process.env.NODE_ENV !== "production") {
+      const { setupVite } = await import("./vite");
+      await setupVite(httpServer, app);
+    }
+    const port = parseInt(process.env.PORT || "5000", 10);
+    httpServer.listen({ port, host: "0.0.0.0" }, () => {
       log(`serving on port ${port}`);
-    },
-  );
-})();
+    });
+  })();
+}

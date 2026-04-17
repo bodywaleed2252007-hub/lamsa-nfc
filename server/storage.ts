@@ -77,45 +77,43 @@ class MemoryStorage implements IStorage {
   }
 }
 
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
+const { Pool } = pg;
+import { users } from "@shared/schema";
+
 // ─── PostgreSQL Storage (for production with DATABASE_URL) ───
 class DatabaseStorage implements IStorage {
   private db: any;
   private users_table: any;
 
   constructor() {
-    // Lazy-load pg only if DATABASE_URL is set
     this.init();
   }
 
-  private async init() {
+  private init() {
     try {
-      const { drizzle } = await import("drizzle-orm/node-postgres");
-      const { Pool } = await import("pg");
-      const { users } = await import("@shared/schema");
-      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      this.db = drizzle(pool);
-      this.users_table = users;
+      if (process.env.DATABASE_URL) {
+        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        this.db = drizzle(pool);
+        this.users_table = users;
+      }
     } catch (e) {
       console.error("[storage] DB init failed:", e);
     }
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const { eq } = await import("drizzle-orm");
-    const { users } = await import("@shared/schema");
     const result = await this.db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const { eq } = await import("drizzle-orm");
-    const { users } = await import("@shared/schema");
     const result = await this.db.select().from(users).where(eq(users.username, username));
     return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const { users } = await import("@shared/schema");
     const hashed = await bcrypt.hash(insertUser.password, 10);
     const result = await this.db
       .insert(users)
@@ -125,8 +123,6 @@ class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
-    const { eq } = await import("drizzle-orm");
-    const { users } = await import("@shared/schema");
     const data: Partial<InsertUser> = { ...updates };
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
@@ -136,13 +132,10 @@ class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
-    const { eq } = await import("drizzle-orm");
-    const { users } = await import("@shared/schema");
     await this.db.delete(users).where(eq(users.id, id));
   }
 
   async listUsers(): Promise<User[]> {
-    const { users } = await import("@shared/schema");
     return this.db.select().from(users);
   }
 
