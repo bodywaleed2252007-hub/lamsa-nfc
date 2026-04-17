@@ -98,6 +98,12 @@ app.get("/api/users", async (req: Request, res: Response) => {
     }
 });
 
+// Short URL Redirect (/p/id)
+app.get("/p/:id", (req: Request, res: Response) => {
+    const { id } = req.params;
+    res.redirect(`/preview?id=${id}&embedded=true`);
+});
+
 app.post("/api/users", async (req: Request, res: Response) => {
     if (!req.session?.userId) return res.status(401).send("Unauthorized");
     

@@ -64,7 +64,7 @@ export default function Preview() {
       
       // 2. Generate the short URL
       const baseUrl = window.location.origin;
-      const url = `${baseUrl}/preview?id=${data.id}&embedded=true`;
+      const url = `${baseUrl}/p/${data.id}`;
       
       // 3. Copy to clipboard
       if (navigator.clipboard && window.isSecureContext) {
@@ -118,7 +118,7 @@ export default function Preview() {
       });
       const data = await res.json();
       const baseUrl = window.location.origin;
-      const url = `${baseUrl}/preview?id=${data.id}&embedded=true`;
+      const url = `${baseUrl}/p/${data.id}`;
 
       setNfcMessage('قرّب الكارت من موبايلك...');
 
