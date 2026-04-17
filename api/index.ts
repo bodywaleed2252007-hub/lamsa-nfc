@@ -32,6 +32,30 @@ app.use(
   })
 );
 
+// Debug Route to verify DB status
+app.get("/api/debug", async (_req, res) => {
+  const status: any = {
+    env: process.env.NODE_ENV,
+    hasDbUrl: !!process.env.DATABASE_URL,
+    storageType: storage?.constructor?.name,
+  };
+  
+  if (storage && process.env.DATABASE_URL) {
+    try {
+      const db = await storage.getDb();
+      await db.execute(sql`SELECT 1`);
+      status.dbConnection = "Connected ✅";
+      
+      const userCount = await storage.listUsers();
+      status.totalUsers = userCount.length;
+    } catch (e: any) {
+      status.dbConnection = "Failed ❌: " + e.message;
+    }
+  }
+  
+  res.json(status);
+});
+
 // Emergency Status Route (Always works)
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -247,6 +271,13 @@ app.post("/api/profiles", async (req: Request, res: Response) => {
 
     // Create new
     const shortId = Math.random().toString(36).substring(2, 9);
+    
+    // FINAL CHECK: Does this user REALLY have no profile? (Double check for safety)
+    const doubleCheck = await storage.getProfileByUserId(userId);
+    if (doubleCheck) {
+        return res.status(400).json({ message: "لديك بطاقة بالفعل، يمكنك تعديلها فقط" });
+    }
+
     try {
       const newProfile = await storage.createProfile({
         ...profileData,
@@ -258,7 +289,7 @@ app.post("/api/profiles", async (req: Request, res: Response) => {
       res.json(newProfile);
     } catch (createErr: any) {
       console.error("Critical Profile Creation Error:", createErr);
-      throw createErr;
+      res.status(500).json({ message: "فشل إنشاء البطاقة في قاعدة البيانات: " + createErr.message });
     }
   } catch (err: any) {
     res.status(500).json({ message: "خطأ في السيرفر: " + err.message });
