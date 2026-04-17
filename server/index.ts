@@ -93,6 +93,11 @@ async function setupApp() {
     const httpServer = createServer(app);
     await registerRoutes(httpServer, app);
 
+    // Health check
+    app.get("/api/health", (_req, res) => {
+        res.json({ status: "ok", time: new Date().toISOString() });
+    });
+
     app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
@@ -113,8 +118,17 @@ async function setupApp() {
 
 // For Vercel Serverless
 export default async function vercelHandler(req: Request, res: Response) {
-  await setupApp();
-  return app(req, res);
+  try {
+    await setupApp();
+    return app(req, res);
+  } catch (err: any) {
+    console.error("Vercel Handler Crash:", err);
+    res.status(500).json({ 
+        message: "Internal Server Error", 
+        error: err.message,
+        stack: process.env.NODE_ENV === "development" ? err.stack : undefined
+    });
+  }
 }
 
 // For local development

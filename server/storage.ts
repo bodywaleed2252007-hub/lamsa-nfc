@@ -94,12 +94,20 @@ class DatabaseStorage implements IStorage {
   private init() {
     try {
       if (process.env.DATABASE_URL) {
-        const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+        console.log("[storage] Connecting to PostgreSQL...");
+        const pool = new Pool({ 
+          connectionString: process.env.DATABASE_URL,
+          connectionTimeoutMillis: 5000,
+          idleTimeoutMillis: 30000,
+        });
         this.db = drizzle(pool);
         this.users_table = users;
+        console.log("[storage] Database initialization successful");
+      } else {
+        console.warn("[storage] DATABASE_URL is missing, database operations will fail");
       }
     } catch (e) {
-      console.error("[storage] DB init failed:", e);
+      console.error("[storage] Database initialization FAILED:", e);
     }
   }
 
@@ -109,6 +117,10 @@ class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
+    if (!this.db) {
+        console.error("[storage] getUserByUsername: Database not initialized!");
+        throw new Error("Database not initialized. Please check your DATABASE_URL.");
+    }
     const result = await this.db.select().from(users).where(eq(users.username, username));
     return result[0];
   }

@@ -64,7 +64,7 @@ export async function registerRoutes(
 
   // Auth: logout
   app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.session.destroy(() => {});
+    req.session = null;
     res.json({ message: "Logged out" });
   });
 
@@ -75,7 +75,7 @@ export async function registerRoutes(
     }
     const user = await storage.getUser(req.session.userId);
     if (!user || !user.isActive) {
-      req.session.destroy(() => {});
+      req.session = null;
       return res.status(401).json({ message: "Not authenticated" });
     }
     return res.json({
