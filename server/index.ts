@@ -37,10 +37,10 @@ app.use(
 // Passport requires this when using cookie-session to recreate the session object
 app.use(function(req, res, next) {
     if (req.session && !req.session.regenerate) {
-        req.session.regenerate = (cb) => { cb(null) }
+        req.session.regenerate = (cb: any) => { cb(null) }
     }
     if (req.session && !req.session.save) {
-        req.session.save = (cb) => { cb(null) }
+        req.session.save = (cb: any) => { cb(null) }
     }
     next()
 });
@@ -121,6 +121,8 @@ export default async function vercelHandler(req: Request, res: Response) {
 if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
   (async () => {
     const httpServer = await setupApp();
+    if (!httpServer) return; // Fix for TS potentially null
+
     if (process.env.NODE_ENV !== "production") {
       const { setupVite } = await import("./vite");
       await setupVite(httpServer, app);
