@@ -37,6 +37,7 @@ export interface IStorage {
 // ─── In-Memory Storage (for local dev without PostgreSQL) ───
 class MemoryStorage implements IStorage {
   private users: Map<string, User> = new Map();
+  private profiles: Map<string, Profile> = new Map();
 
   async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
@@ -64,7 +65,7 @@ class MemoryStorage implements IStorage {
     if (!user) return undefined;
     const data = { ...updates };
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+      data.password = await hashPassword(data.password);
     }
     const updated: User = { ...user, ...data };
     this.users.set(id, updated);
@@ -119,6 +120,9 @@ class MemoryStorage implements IStorage {
     const updated: Profile = { ...profile, ...updates };
     this.profiles.set(id, updated);
     return updated;
+  }
+  async deleteProfile(id: string): Promise<void> {
+    this.profiles.delete(id);
   }
 }
 
