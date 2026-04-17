@@ -42,15 +42,40 @@ export default function Preview() {
     return `${baseUrl}/preview?data=${encoded}&embedded=true`;
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = getShareUrl();
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast({
-      title: "تم نسخ الرابط!",
-      description: "يمكنك الآن مشاركة هذا الرابط أو ربطه ببطاقة NFC.",
-    });
-    setTimeout(() => setCopied(false), 2000);
+    
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        // Fallback for non-HTTPS environments (like local network testing on mobile)
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        // Move it off-screen
+        textArea.style.position = "absolute";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error("Fallback copy failed", err);
+        }
+        document.body.removeChild(textArea);
+      }
+      
+      setCopied(true);
+      toast({
+        title: "تم نسخ الرابط!",
+        description: "يمكنك الآن مشاركة هذا الرابط أو ربطه ببطاقة NFC.",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
   };
 
   const handleNfcWrite = async () => {
@@ -241,6 +266,48 @@ export default function Preview() {
           button: "bg-slate-700 hover:bg-slate-600 text-white border border-slate-500/50",
           textGradient: "text-slate-100",
           linkCard: "bg-slate-950/80 border border-slate-800 hover:border-slate-600 hover:bg-slate-900/50"
+        };
+      // ─── NEW Hero Themes ───
+      case 'spiderman':
+        return {
+          container: "bg-[#080000] text-red-50",
+          card: "bg-black/85 border border-red-700/40 shadow-[0_0_60px_-10px_rgba(185,28,28,0.5)] backdrop-blur-sm",
+          button: "bg-red-700 hover:bg-red-600 text-white font-bold tracking-wider uppercase shadow-lg shadow-red-900/50",
+          textGradient: "text-red-400 drop-shadow-[0_0_12px_rgba(239,68,68,0.8)]",
+          linkCard: "bg-black/60 border border-red-900/40 hover:border-red-600/60 hover:bg-red-950/30"
+        };
+      case 'ironman':
+        return {
+          container: "bg-[#0a0000] text-yellow-50",
+          card: "bg-black/85 border border-red-600/40 shadow-[0_0_60px_-10px_rgba(220,38,38,0.4)] backdrop-blur-sm",
+          button: "bg-gradient-to-r from-red-600 to-yellow-500 text-white font-bold tracking-wide shadow-lg shadow-red-900/50",
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-yellow-300 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]",
+          linkCard: "bg-black/70 border border-red-900/40 hover:border-yellow-500/50 hover:bg-red-950/20"
+        };
+      case 'tonystark':
+        return {
+          container: "bg-[#050510] text-blue-50",
+          card: "bg-slate-950/85 border border-red-600/30 shadow-[0_0_70px_-10px_rgba(59,130,246,0.3)] backdrop-blur-sm",
+          button: "bg-gradient-to-r from-red-700 to-blue-700 text-white font-bold tracking-wide",
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-blue-300",
+          linkCard: "bg-slate-950/60 border border-blue-900/40 hover:border-red-500/40 hover:bg-blue-950/20"
+        };
+      // ─── NEW Aesthetic Themes ───
+      case 'anime_sunset':
+        return {
+          container: "bg-[#0d0a1a] text-pink-50",
+          card: "bg-purple-950/70 border border-pink-400/20 shadow-[0_0_60px_-10px_rgba(244,114,182,0.3)] backdrop-blur-md",
+          button: "bg-gradient-to-r from-pink-500 to-blue-500 text-white font-bold tracking-wide hover:opacity-90",
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-blue-300",
+          linkCard: "bg-purple-950/50 border border-pink-800/30 hover:border-pink-400/40 hover:bg-pink-950/20"
+        };
+      case 'portal_sunset':
+        return {
+          container: "bg-[#060d14] text-orange-50",
+          card: "bg-slate-900/70 border border-orange-400/20 shadow-[0_0_60px_-10px_rgba(251,146,60,0.25)] backdrop-blur-md",
+          button: "bg-gradient-to-r from-orange-400 to-teal-400 text-white font-bold tracking-wide hover:opacity-90",
+          textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-orange-300 to-teal-300",
+          linkCard: "bg-slate-900/50 border border-orange-900/30 hover:border-orange-400/40 hover:bg-orange-950/15"
         };
       default: // glass (Updated to match the screenshot provided)
         return {
@@ -460,6 +527,76 @@ export default function Preview() {
            </>
         )}
 
+        {/* Spider-Man Aura */}
+        {profile.theme === 'spiderman' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[65%] opacity-55 mix-blend-screen pointer-events-none">
+                  <img src="/spiderman.jpg" alt="background" className="w-full h-full object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080000] via-[#080000]/85 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 inset-x-0 h-60 bg-red-700/25 blur-[100px] pointer-events-none z-0" />
+             <div className="absolute top-40 -right-10 w-40 h-40 bg-red-900/20 rounded-full blur-[70px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Iron Man Aura */}
+        {profile.theme === 'ironman' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[65%] opacity-50 mix-blend-screen pointer-events-none">
+                  <img src="/ironman.jpg" alt="background" className="w-full h-full object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0000] via-[#0a0000]/85 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-10 inset-x-0 h-40 bg-red-600/20 blur-[80px] pointer-events-none z-0" />
+             <div className="absolute top-30 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-400/15 rounded-full blur-[60px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Tony Stark Aura */}
+        {profile.theme === 'tonystark' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[70%] opacity-45 mix-blend-hard-light pointer-events-none">
+                  <img src="/tony-stark.jpg" alt="background" className="w-full h-full object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050510] via-[#050510]/90 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-60 h-40 bg-blue-500/15 rounded-full blur-[80px] pointer-events-none z-0" />
+             <div className="absolute top-40 -right-10 w-40 h-40 bg-red-600/15 rounded-full blur-[60px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Anime Sunset Aura */}
+        {profile.theme === 'anime_sunset' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[75%] opacity-55 mix-blend-soft-light pointer-events-none">
+                  <img src="/anime-sunset.jpg" alt="background" className="w-full h-full object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0d0a1a] via-[#0d0a1a]/85 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 inset-x-0 h-60 bg-pink-500/20 blur-[100px] pointer-events-none z-0" />
+             <div className="absolute top-40 left-1/2 -translate-x-1/2 w-60 h-40 bg-blue-500/15 rounded-full blur-[80px] pointer-events-none z-0" />
+           </>
+        )}
+
+        {/* Portal Sunset Aura */}
+        {profile.theme === 'portal_sunset' && (
+           <>
+             <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[80%] opacity-50 mix-blend-overlay pointer-events-none">
+                  <img src="/portal-sunset.jpg" alt="background" className="w-full h-full object-cover object-top" style={{ maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)' }} />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[#060d14] via-[#060d14]/85 to-transparent z-10" />
+             </div>
+             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-40 bg-orange-400/20 rounded-full blur-[90px] pointer-events-none z-0" />
+             <div className="absolute top-40 left-1/4 w-40 h-40 bg-teal-500/15 rounded-full blur-[70px] pointer-events-none z-0" />
+           </>
+        )}
+
         {/* Profile Section */}
         <div className="relative z-10 flex flex-col items-center mb-10">
           <motion.div 
@@ -577,10 +714,18 @@ function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string })
     return map[link.platform] || map.website;
   };
 
+  const getValidUrl = (url: string) => {
+    if (!url) return "#";
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') || url.startsWith('tel:')) {
+      return url;
+    }
+    return `https://${url}`;
+  };
+
   return (
     <motion.a
       variants={item}
-      href={link.url}
+      href={getValidUrl(link.url)}
       target="_blank"
       rel="noopener noreferrer"
       className={`group flex items-center gap-4 p-4 rounded-2xl relative overflow-hidden transition-all duration-300 ${cardStyle}`}

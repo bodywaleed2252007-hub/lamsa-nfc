@@ -7,29 +7,38 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, ArrowLeft, Eye, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin } from "lucide-react";
-import { motion } from "framer-motion";
+import { Trash2, Plus, ArrowLeft, Eye, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const PLATFORMS = [
-  { id: 'instagram', name: 'Instagram', icon: Instagram },
-  { id: 'tiktok', name: 'TikTok', icon: Globe }, // Lucide doesn't have tiktok
-  { id: 'facebook', name: 'Facebook', icon: Facebook },
-  { id: 'whatsapp', name: 'WhatsApp', icon: Phone },
-  { id: 'snapchat', name: 'Snapchat', icon: Globe }, // Lucide doesn't have snapchat
-  { id: 'youtube', name: 'YouTube', icon: Youtube },
-  { id: 'linkedin', name: 'LinkedIn', icon: Linkedin },
-  { id: 'website', name: 'Website', icon: Globe },
-  { id: 'menu', name: 'Menu / قائمة الطعام', icon: UtensilsCrossed },
-  { id: 'location', name: 'Location / الموقع', icon: MapPin },
-  { id: 'call', name: 'Call / اتصال', icon: Phone },
+  { id: 'instagram', name: 'Instagram', color: '#E1306C' },
+  { id: 'tiktok', name: 'TikTok', color: '#010101' },
+  { id: 'facebook', name: 'Facebook', color: '#1877F2' },
+  { id: 'whatsapp', name: 'WhatsApp', color: '#25D366' },
+  { id: 'snapchat', name: 'Snapchat', color: '#FFFC00' },
+  { id: 'youtube', name: 'YouTube', color: '#FF0000' },
+  { id: 'linkedin', name: 'LinkedIn', color: '#0A66C2' },
+  { id: 'website', name: 'Website / موقع', color: '#6366F1' },
+  { id: 'menu', name: 'Menu / قائمة الطعام', color: '#F97316' },
+  { id: 'location', name: 'Location / الموقع', color: '#10B981' },
+  { id: 'call', name: 'Call / اتصال', color: '#3B82F6' },
 ];
+
+const THEME_NAMES: Record<string, string> = {
+  glass: 'زجاجي حديث', minimal: 'أسود فخم', creative: 'مبدع ملون',
+  neon: 'نيون سايبر', pastel: 'ناعم هادئ', professional: 'احترافي رسمي',
+  stranger: 'Stranger Things', breakingbad: 'Breaking Bad', got: 'Game of Thrones',
+  prisonbreak: 'Prison Break', jujutsu: 'Jujutsu Kaisen', lofi: 'Lo-Fi',
+  sunrise: 'Sunrise', eclipse: 'Eclipse', spiderman: 'Spider-Man',
+  ironman: 'Iron Man', tonystark: 'Tony Stark', anime_sunset: 'Anime Sunset',
+  portal_sunset: 'Portal Sunset',
+};
 
 export default function Editor() {
   const [, params] = useRoute("/create/:templateId");
   const [, setLocation] = useLocation();
   const { profile, updateProfile, addLink, removeLink, updateLink } = useProfile();
-  
-  // Set theme based on route param on mount
+
   useEffect(() => {
     if (params?.templateId) {
       updateProfile({ theme: params.templateId });
@@ -40,161 +49,214 @@ export default function Editor() {
     updateLink(index, { ...profile.links[index], [field]: value });
   };
 
+  const themeName = THEME_NAMES[profile.theme] || profile.theme;
+
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Editor Sidebar */}
-      <div className="w-full md:w-1/2 lg:w-2/5 border-r border-white/10 bg-black/20 backdrop-blur-lg h-screen overflow-y-auto p-6 flex flex-col gap-6">
-        
-        <div className="flex items-center justify-between">
+      <div className="w-full md:w-[420px] shrink-0 border-r border-white/8 bg-black/30 backdrop-blur-xl h-screen overflow-y-auto flex flex-col">
+
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-black/40 backdrop-blur-xl border-b border-white/8 px-5 py-4 flex items-center justify-between">
           <Link href="/templates">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="text-white/50 hover:text-white hover:bg-white/5 rounded-xl">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h2 className="text-xl font-bold" dir="rtl">تعديل البيانات</h2>
+          <div className="text-center">
+            <h2 className="text-sm font-bold text-white" dir="rtl">تعديل البيانات</h2>
+            <p className="text-xs text-primary/80 mt-0.5">{themeName}</p>
+          </div>
+          <Button
+            className="h-9 px-4 text-sm font-bold bg-green-500 hover:bg-green-400 text-black rounded-xl gap-1.5"
+            onClick={() => setLocation('/preview')}
+          >
+            <Eye className="w-4 h-4" />
+            معاينة
+          </Button>
         </div>
 
-        <div className="space-y-6" dir="rtl">
+        <div className="flex-1 p-5 space-y-5" dir="rtl">
           {/* Basic Info */}
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-lg">المعلومات الأساسية</CardTitle>
+          <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3 pt-4 px-4">
+              <CardTitle className="text-sm font-bold text-white/80 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-primary/20 flex items-center justify-center">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                </div>
+                المعلومات الأساسية
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>الاسم</Label>
-                <Input 
-                  value={profile.name} 
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-white/50">الاسم الكامل</Label>
+                <Input
+                  value={profile.name}
                   onChange={(e) => updateProfile({ name: e.target.value })}
-                  className="bg-black/20 border-white/10 text-right"
+                  className="bg-black/30 border-white/8 text-white text-right rounded-xl h-10 text-sm placeholder:text-white/25"
                   placeholder="اسمك بالكامل"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>نبذة تعريفية</Label>
-                <Textarea 
-                  value={profile.bio} 
+              <div className="space-y-1.5">
+                <Label className="text-xs text-white/50">نبذة تعريفية</Label>
+                <Textarea
+                  value={profile.bio}
                   onChange={(e) => updateProfile({ bio: e.target.value })}
-                  className="bg-black/20 border-white/10 text-right"
+                  className="bg-black/30 border-white/8 text-white text-right rounded-xl text-sm placeholder:text-white/25 resize-none"
                   placeholder="اكتب شيئاً عنك..."
+                  rows={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>رابط الصورة الشخصية</Label>
-                <Input 
-                  value={profile.avatarUrl} 
+              <div className="space-y-1.5">
+                <Label className="text-xs text-white/50">رابط الصورة الشخصية</Label>
+                <Input
+                  value={profile.avatarUrl}
                   onChange={(e) => updateProfile({ avatarUrl: e.target.value })}
-                  className="bg-black/20 border-white/10 text-right ltr"
+                  className="bg-black/30 border-white/8 text-white text-left ltr rounded-xl h-10 text-sm placeholder:text-white/25"
                   placeholder="https://..."
+                  dir="ltr"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>الدومين الخاص (اختياري)</Label>
-                <Input 
-                  value={profile.customDomain} 
+              <div className="space-y-1.5">
+                <Label className="text-xs text-white/50">الدومين الخاص <span className="text-white/25">(اختياري)</span></Label>
+                <Input
+                  value={profile.customDomain}
                   onChange={(e) => updateProfile({ customDomain: e.target.value })}
-                  className="bg-black/20 border-white/10 text-left ltr"
+                  className="bg-black/30 border-white/8 text-white text-left ltr rounded-xl h-10 text-sm placeholder:text-white/25"
                   placeholder="https://yourdomain.com"
+                  dir="ltr"
                 />
-                <p className="text-xs text-white/40">لو عندك دومين خاص، الروابط هتطلع بيه</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Social Links */}
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">روابط التواصل</CardTitle>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => addLink({ platform: 'website', url: '', handle: '' })}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" /> إضافة رابط
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {profile.links.map((link, index) => (
-                <motion.div 
-                  key={index}
-                  layout
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  className="p-4 rounded-xl bg-black/20 border border-white/5 space-y-3 relative group"
+          <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3 pt-4 px-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-bold text-white/80">روابط التواصل</CardTitle>
+                <Button
+                  size="sm"
+                  onClick={() => addLink({ platform: 'instagram', url: '', handle: '' })}
+                  className="h-7 px-3 text-xs rounded-lg bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20 gap-1"
                 >
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute top-2 left-2 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => removeLink(index)}
+                  <Plus className="w-3 h-3" />
+                  إضافة
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              {profile.links.length === 0 && (
+                <div className="text-center py-6 text-white/25 text-sm">
+                  اضغط "إضافة" لإضافة رابط
+                </div>
+              )}
+              <AnimatePresence>
+                {profile.links.map((link, index) => (
+                  <motion.div
+                    key={index}
+                    layout
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="col-span-2">
-                      <Label className="text-xs text-white/50 mb-1 block">المنصة</Label>
-                      <Select 
-                        value={link.platform} 
-                        onValueChange={(val) => handleLinkChange(index, 'platform', val as any)}
+                    <div className="p-3 rounded-xl bg-black/25 border border-white/5 space-y-2.5 relative group">
+                      {/* Delete btn */}
+                      <button
+                        onClick={() => removeLink(index)}
+                        className="absolute top-2 left-2 w-6 h-6 rounded-lg bg-red-950/40 border border-red-500/20 flex items-center justify-center text-red-400/50 hover:text-red-400 hover:bg-red-950/70 opacity-0 group-hover:opacity-100 transition-all"
                       >
-                        <SelectTrigger className="bg-black/20 border-white/10 text-right dir-rtl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PLATFORMS.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="col-span-1">
-                      <Label className="text-xs text-white/50 mb-1 block">المعرف (Handle)</Label>
-                      <Input 
-                        value={link.handle}
-                        onChange={(e) => handleLinkChange(index, 'handle', e.target.value)}
-                        placeholder="@username"
-                        className="bg-black/20 border-white/10 text-left h-8 text-sm"
-                      />
-                    </div>
+                        <Trash2 className="w-3 h-3" />
+                      </button>
 
-                    <div className="col-span-1">
-                      <Label className="text-xs text-white/50 mb-1 block">الرابط</Label>
-                      <Input 
-                        value={link.url}
-                        onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
-                        placeholder="https://..."
-                        className="bg-black/20 border-white/10 text-left h-8 text-sm"
-                      />
+                      {/* Platform */}
+                      <div>
+                        <Label className="text-[10px] text-white/35 mb-1 block">المنصة</Label>
+                        <Select
+                          value={link.platform}
+                          onValueChange={(val) => handleLinkChange(index, 'platform', val as any)}
+                        >
+                          <SelectTrigger className="bg-black/30 border-white/8 text-white text-right text-sm h-9 rounded-lg">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-900 border-white/10">
+                            {PLATFORMS.map(p => (
+                              <SelectItem key={p.id} value={p.id} className="text-white text-sm">
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px] text-white/35 mb-1 block">المعرف</Label>
+                          <Input
+                            value={link.handle}
+                            onChange={(e) => handleLinkChange(index, 'handle', e.target.value)}
+                            placeholder="@username"
+                            className="bg-black/30 border-white/8 text-white text-left h-8 text-xs rounded-lg placeholder:text-white/20"
+                            dir="ltr"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] text-white/35 mb-1 block">الرابط</Label>
+                          <Input
+                            value={link.url}
+                            onChange={(e) => handleLinkChange(index, 'url', e.target.value)}
+                            placeholder="https://..."
+                            className="bg-black/30 border-white/8 text-white text-left h-8 text-xs rounded-lg placeholder:text-white/20"
+                            dir="ltr"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </CardContent>
           </Card>
-          
-          <Button 
-            className="w-full h-12 text-lg font-bold bg-green-500 hover:bg-green-600 text-white"
+
+          {/* Full preview button */}
+          <Button
+            className="w-full h-12 text-base font-black bg-gradient-to-r from-primary to-blue-600 hover:opacity-90 text-white rounded-2xl shadow-lg shadow-primary/25"
             onClick={() => setLocation('/preview')}
           >
-            <Eye className="w-5 h-5 mr-2" />
-            معاينة وإنهاء
+            <Eye className="w-5 h-5 ml-2" />
+            معاينة كاملة وإنهاء
           </Button>
-
         </div>
       </div>
 
-      {/* Live Preview Area (Hidden on mobile, visible on desktop) */}
+      {/* Live Preview Area */}
       <div className="hidden md:flex flex-1 items-center justify-center bg-zinc-950 p-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />
-        <div className="phone-frame w-[375px] h-[812px] bg-black rounded-[3rem] border-8 border-zinc-800 shadow-2xl overflow-hidden relative">
-           <iframe 
-             src="/preview?embedded=true" 
-             className="w-full h-full border-0 bg-background"
-             title="Preview"
-           />
+        {/* Noise texture */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgZmlsdGVyPSJ1cmwoI25vaXNlKSIgb3BhY2l0eT0iMSIvPjwvc3ZnPg==')]" />
+
+        {/* Subtle glow behind phone */}
+        <div className="absolute w-80 h-80 bg-primary/10 rounded-full blur-[100px]" />
+
+        {/* Phone frame */}
+        <div className="relative z-10">
+          <div className="phone-frame w-[375px] h-[812px] bg-black rounded-[3rem] border-[10px] border-zinc-700 shadow-[0_40px_100px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden relative">
+            {/* Speaker notch */}
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-1.5 bg-zinc-800 rounded-full z-50" />
+            <iframe
+              src="/preview?embedded=true"
+              className="w-full h-full border-0 bg-background"
+              title="Preview"
+            />
+          </div>
+          {/* Phone reflection */}
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-48 h-6 bg-white/5 rounded-full blur-xl" />
+        </div>
+
+        {/* Theme label */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-1.5 bg-white/5 border border-white/10 rounded-full backdrop-blur-sm">
+          <Sparkles className="w-3 h-3 text-primary" />
+          <span className="text-xs text-white/50 font-medium">{themeName}</span>
         </div>
       </div>
     </div>
