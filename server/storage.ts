@@ -92,42 +92,49 @@ class DatabaseStorage implements IStorage {
   }
 
   private init() {
+    // Moved to lazy initialization to prevent startup crashes
+  }
+
+  private async getDb() {
+    if (this.db) return this.db;
+    
     try {
-      if (process.env.DATABASE_URL) {
-        console.log("[storage] Connecting to PostgreSQL...");
-        const pool = new Pool({ 
-          connectionString: process.env.DATABASE_URL,
-          connectionTimeoutMillis: 5000,
-          idleTimeoutMillis: 30000,
-        });
-        this.db = drizzle(pool);
-        this.users_table = users;
-        console.log("[storage] Database initialization successful");
-      } else {
-        console.warn("[storage] DATABASE_URL is missing, database operations will fail");
+      if (!process.env.DATABASE_URL) {
+        throw new Error("DATABASE_URL is not defined");
       }
+      
+      console.log("[storage] Connecting to PostgreSQL (Lazy Init)...");
+      const pool = new Pool({ 
+        connectionString: process.env.DATABASE_URL,
+        connectionTimeoutMillis: 10000,
+        ssl: true
+      });
+      
+      this.db = drizzle(pool);
+      console.log("[storage] Database connection initialized");
+      return this.db;
     } catch (e) {
       console.error("[storage] Database initialization FAILED:", e);
+      throw e;
     }
   }
 
   async getUser(id: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.id, id));
+    const db = await this.getDb();
+    const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    if (!this.db) {
-        console.error("[storage] getUserByUsername: Database not initialized!");
-        throw new Error("Database not initialized. Please check your DATABASE_URL.");
-    }
-    const result = await this.db.select().from(users).where(eq(users.username, username));
+    const db = await this.getDb();
+    const result = await db.select().from(users).where(eq(users.username, username));
     return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
+    const db = await this.getDb();
     const hashed = await bcrypt.hash(insertUser.password, 10);
-    const result = await this.db
+    const result = await db
       .insert(users)
       .values({ ...insertUser, password: hashed })
       .returning();
@@ -135,20 +142,23 @@ class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const db = await this.getDb();
     const data: Partial<InsertUser> = { ...updates };
     if (data.password) {
       data.password = await bcrypt.hash(data.password, 10);
     }
-    const result = await this.db.update(users).set(data).where(eq(users.id, id)).returning();
+    const result = await db.update(users).set(data).where(eq(users.id, id)).returning();
     return result[0];
   }
 
   async deleteUser(id: string): Promise<void> {
-    await this.db.delete(users).where(eq(users.id, id));
+    const db = await this.getDb();
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async listUsers(): Promise<User[]> {
-    return this.db.select().from(users);
+    const db = await this.getDb();
+    return db.select().from(users);
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
