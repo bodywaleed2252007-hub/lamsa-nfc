@@ -1,7 +1,21 @@
 import { eq } from "drizzle-orm";
 import { type User, type InsertUser } from "@shared/schema";
-import bcrypt from "bcrypt";
-import { randomUUID } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -27,9 +41,9 @@ class MemoryStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const hashed = await bcrypt.hash(insertUser.password, 10);
+    const hashed = await hashPassword(insertUser.password);
     const user: User = {
-      id: randomUUID(),
+      id: Math.random().toString(36).substring(2, 9),
       username: insertUser.username,
       password: hashed,
       isAdmin: insertUser.isAdmin ?? false,
@@ -60,7 +74,7 @@ class MemoryStorage implements IStorage {
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
-    return bcrypt.compare(password, user.password);
+    return comparePasswords(password, user.password);
   }
 
   async ensureAdminExists(): Promise<void> {
@@ -133,7 +147,7 @@ class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const db = await this.getDb();
-    const hashed = await bcrypt.hash(insertUser.password, 10);
+    const hashed = await hashPassword(insertUser.password);
     const result = await db
       .insert(users)
       .values({ ...insertUser, password: hashed })
@@ -145,7 +159,7 @@ class DatabaseStorage implements IStorage {
     const db = await this.getDb();
     const data: Partial<InsertUser> = { ...updates };
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+      data.password = await hashPassword(data.password);
     }
     const result = await db.update(users).set(data).where(eq(users.id, id)).returning();
     return result[0];
@@ -162,7 +176,7 @@ class DatabaseStorage implements IStorage {
   }
 
   async validatePassword(user: User, password: string): Promise<boolean> {
-    return bcrypt.compare(password, user.password);
+    return comparePasswords(password, user.password);
   }
 
   async ensureAdminExists(): Promise<void> {
