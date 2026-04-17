@@ -45,6 +45,10 @@ import {
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 
+interface ManagedUser {
+  id: string;
+  username: string;
+  isAdmin: boolean;
   isActive: boolean;
   profileId?: string;
   isProfileEditable?: boolean;
