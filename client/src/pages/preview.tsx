@@ -61,6 +61,11 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         body: JSON.stringify(profile),
       });
       
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "فشل حفظ البيانات في السيرفر");
+      }
+      
       const data = await res.json();
       
       // 2. Generate the short URL
@@ -117,6 +122,12 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),
       });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "فشل حفظ البيانات قبل البرمجة");
+      }
+
       const data = await res.json();
       const baseUrl = window.location.origin;
       const url = `${baseUrl}/p/${data.id}`;

@@ -121,13 +121,16 @@ export default function Admin() {
       });
       if (!res.ok) {
         const err = await res.json();
-        setCreateError(err.message + (err.debug ? ` (${err.debug})` : ""));
+        const msg = err.message + (err.debug ? ` (${err.debug})` : "");
+        setCreateError(msg);
+        alert("فشل إنشاء المستخدم: " + msg);
         return;
       }
       setNewUsername("");
       setNewPassword("");
       setNewIsAdmin(false);
       setDialogOpen(false);
+      alert("تم إنشاء المستخدم بنجاح! 🎉");
       await fetchUsers();
     } finally {
       setCreating(false);
