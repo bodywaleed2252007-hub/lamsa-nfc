@@ -1,7 +1,7 @@
 import express, { type Request, Response } from "express";
 import cookieSession from "cookie-session";
 import { eq, sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -28,7 +28,9 @@ const profiles = pgTable("profiles", {
   links: text("links").notNull(),
   customDomain: text("custom_domain"),
   isEditable: boolean("is_editable").notNull().default(true),
-  // Removed new columns to stop crash for sure
+  views: integer("views").default(0),
+  isDirectRedirect: boolean("is_direct_redirect").default(false),
+  directUrl: text("direct_url"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -84,10 +86,10 @@ class DatabaseStorage {
         );
       `);
       
-      // Manual background column addition
-      db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`).catch(() => {});
-      db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`).catch(() => {});
-      db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`).catch(() => {});
+      // Attempt to add columns one by one
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`); } catch(e){}
 
       const result = await db.select().from(users).where(eq(users.username, "admin"));
       if (result.length === 0) {
@@ -258,6 +260,13 @@ app.get("/api/profiles/:id", async (req, res) => {
     try {
         const profile = await storage.getProfile(req.params.id);
         if (!profile) return res.status(404).json({ message: "Not found" });
+        
+        // Increment views in background safely
+        try {
+            const db = await storage.getDb();
+            await db.update(profiles).set({ views: (profile.views || 0) + 1 }).where(eq(profiles.id, profile.id));
+        } catch(e) {}
+
         res.json(profile);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
@@ -268,6 +277,19 @@ app.patch("/api/profiles/:id/editable", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
         const updated = await storage.updateProfile(req.params.id, { isEditable: req.body.isEditable });
+        res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.patch("/api/profiles/:id/direct", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const updated = await storage.updateProfile(req.params.id, { 
+            isDirectRedirect: req.body.isDirectRedirect,
+            directUrl: req.body.directUrl 
+        });
         res.json(updated);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
