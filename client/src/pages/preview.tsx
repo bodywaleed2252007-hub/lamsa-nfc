@@ -169,36 +169,29 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   };
 
   const handleSaveContact = () => {
-    // Find a phone number from whatsapp or call links
+    if (!profile) return;
+    
+    // Find phone number and email if they exist in links
     const phoneLink = profile.links.find(l => l.platform === 'whatsapp' || l.platform === 'call');
-    if (!phoneLink) return;
+    const emailLink = profile.links.find(l => l.platform === 'email' || l.platform === 'gmail');
+    
+    const phone = phoneLink?.handle || "";
+    const email = emailLink?.handle || "";
+    
+    const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:${profile.name}
+TEL;TYPE=CELL:${phone}
+EMAIL:${email}
+NOTE:تم الحفظ من لمسة NFC - ${profile.bio || ""}
+END:VCARD`;
 
-    // Extract phone number: prefer handle, fallback to stripping URL prefixes
-    let phone = phoneLink.handle?.trim() || '';
-    if (!phone && phoneLink.url) {
-      phone = phoneLink.url
-        .replace(/^https?:\/\/wa\.me\//i, '')
-        .replace(/^tel:/i, '')
-        .replace(/[^\d+]/g, '');
-    }
-    // Strip any non-digit except leading +
-    phone = phone.replace(/(?!^\+)[^\d]/g, '');
-
-    const vcard = [
-      'BEGIN:VCARD',
-      'VERSION:3.0',
-      `FN:${profile.name}`,
-      `N:${profile.name};;;;`,
-      phone ? `TEL;TYPE=CELL:${phone}` : '',
-      profile.bio ? `TITLE:${profile.bio}` : '',
-      'END:VCARD',
-    ].filter(Boolean).join('\r\n');
-
-    const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([vcard], { type: 'text/vcard' });
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${profile.name.replace(/\s+/g, '_')}.vcf`;
+    a.download = `${profile.name}.vcf`;
+    document.body.appendChild(a);
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -682,28 +675,24 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         </div>
 
         {/* Save Contact Button */}
-        {hasPhone && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="relative z-10 mb-3"
+        <div className="flex gap-2 mb-6">
+          <Button
+            variant="outline"
+            className="flex-1 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10"
+            onClick={handleSaveContact}
           >
-            <button
-              onClick={handleSaveContact}
-              data-testid="button-save-contact"
-              className={`w-full flex items-center justify-center gap-3 py-3 px-5 rounded-2xl font-bold text-sm transition-all active:scale-95 ${theme.button}`}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-                <line x1="12" y1="11" x2="12" y2="17"/>
-                <line x1="9" y1="14" x2="15" y2="14"/>
-              </svg>
-              احفظ رقمي في موبايلك
-            </button>
-          </motion.div>
-        )}
+            <UserPlus className="w-4 h-4 ml-2" />
+            حفظ جهة الاتصال
+          </Button>
+          <Button
+            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
+            onClick={handleShare}
+            disabled={isSaving}
+          >
+            <Share2 className="w-4 h-4 ml-2" />
+            مشاركة الرابط
+          </Button>
+        </div>
 
         {/* Links Section */}
         <motion.div 

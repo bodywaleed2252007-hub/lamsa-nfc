@@ -425,6 +425,10 @@ export default function Admin() {
                           >
                             {u.isActive ? "نشط" : "موقوف"}
                           </Badge>
+                          <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/25 text-[10px] py-0 px-1.5 h-4 flex items-center gap-1">
+                            <Eye className="w-2.5 h-2.5" />
+                            {profiles[u.id]?.views || 0}
+                          </Badge>
                         </div>
                       </div>
                     </div>
@@ -434,7 +438,6 @@ export default function Admin() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        data-testid={`button-toggle-${u.id}`}
                         onClick={() => toggleActive(u)}
                         title={u.isActive ? "إيقاف الحساب" : "تفعيل الحساب"}
                         disabled={u.id === user?.id}

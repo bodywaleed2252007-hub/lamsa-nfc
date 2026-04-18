@@ -28,6 +28,7 @@ const profiles = pgTable("profiles", {
   links: text("links").notNull(),
   customDomain: text("custom_domain"),
   isEditable: boolean("is_editable").notNull().default(true),
+  views: sql`integer`.notNull().default(0), 
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -81,6 +82,7 @@ class DatabaseStorage {
           links TEXT NOT NULL,
           custom_domain TEXT,
           is_editable BOOLEAN NOT NULL DEFAULT TRUE,
+          views INTEGER DEFAULT 0,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -293,6 +295,10 @@ app.get("/api/profiles/:id", async (req, res) => {
     try {
         const profile = await storage.getProfile(req.params.id);
         if (!profile) return res.status(404).json({ message: "Not found" });
+        
+        // Increment views asynchronously
+        storage.updateProfile(profile.id, { views: (Number(profile.views) || 0) + 1 }).catch(e => console.error(e));
+        
         res.json(profile);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
