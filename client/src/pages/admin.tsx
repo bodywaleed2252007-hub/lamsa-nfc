@@ -389,6 +389,18 @@ export default function Admin() {
                     <Button variant="ghost" size="icon" onClick={() => toggleProfileEditable(u)} className={profiles[u.id]?.isEditable ? "text-blue-400" : "text-white/20"}>
                       <ShieldCheck className="w-4 h-4" />
                     </Button>
+                    {/* Preview button - opens the actual card */}
+                    {profiles[u.id]?.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => window.open(`/p/${profiles[u.id].id}`, '_blank')}
+                        title="معاينة الكارت"
+                        className="text-green-400/70 hover:text-green-400"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    )}
                     <AlertDialog>
                       <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="text-red-400/30 hover:text-red-400"><Trash2 className="w-4 h-4" /></Button></AlertDialogTrigger>
                       <AlertDialogContent className="bg-zinc-900 border-white/10 text-white" dir="rtl">
@@ -404,7 +416,7 @@ export default function Admin() {
               </Card>
             ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
