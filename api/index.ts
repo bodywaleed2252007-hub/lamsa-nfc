@@ -89,6 +89,19 @@ class DatabaseStorage {
           direct_url TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
+        -- Robustly add columns if they don't exist
+        DO $$ 
+        BEGIN 
+          BEGIN
+            ALTER TABLE profiles ADD COLUMN views INTEGER DEFAULT 0;
+          EXCEPTION WHEN others THEN END;
+          BEGIN
+            ALTER TABLE profiles ADD COLUMN is_direct_redirect BOOLEAN DEFAULT FALSE;
+          EXCEPTION WHEN others THEN END;
+          BEGIN
+            ALTER TABLE profiles ADD COLUMN direct_url TEXT;
+          EXCEPTION WHEN others THEN END;
+        END $$;
       `);
 
       const result = await db.select().from(users).where(eq(users.username, "admin"));
