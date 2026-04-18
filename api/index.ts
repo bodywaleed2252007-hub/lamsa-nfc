@@ -261,6 +261,38 @@ app.get("/api/profiles/:userId/user", async (req, res) => {
     }
 });
 
+app.post("/api/profiles", async (req, res) => {
+    try {
+        const db = await storage.getDb();
+        const data = req.body;
+        if (!data.id) {
+            data.id = require('crypto').randomUUID();
+        }
+        const linksStr = Array.isArray(data.links) ? JSON.stringify(data.links) : data.links;
+        await db.insert(profiles).values({
+            id: data.id,
+            userId: req.session?.userId && req.session.userId !== "emergency-admin" ? req.session.userId : null,
+            name: data.name || "My Card",
+            bio: data.bio || "",
+            avatarUrl: data.avatarUrl || "",
+            theme: data.theme || "glass",
+            links: linksStr || "[]",
+        }).onConflictDoUpdate({
+            target: profiles.id,
+            set: {
+                name: data.name,
+                bio: data.bio,
+                avatarUrl: data.avatarUrl,
+                theme: data.theme,
+                links: linksStr,
+            }
+        });
+        res.json({ id: data.id });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.get("/p/:id", async (req, res) => {
     res.redirect(`/preview?id=${req.params.id}&embedded=true`);
 });

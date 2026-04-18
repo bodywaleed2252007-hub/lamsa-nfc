@@ -360,8 +360,8 @@ export default function Admin() {
           <div className="space-y-3">
             {filteredUsers.map((u) => (
               <Card key={u.id} className={`bg-white/4 border-white/8 ${!u.isActive && "opacity-50"}`}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
                       {u.isAdmin ? <Crown className="w-5 h-5 text-primary" /> : <User className="w-5 h-5 text-white/40" />}
                     </div>
@@ -373,7 +373,7 @@ export default function Admin() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1 justify-end w-full sm:w-auto">
                     <Button variant="ghost" size="icon" onClick={() => toggleActive(u)} className={u.isActive ? "text-green-400" : "text-white/20"}>
                       {u.isActive ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                     </Button>

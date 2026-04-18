@@ -755,29 +755,7 @@ END:VCARD`;
           </Button>
         </div>
 
-        {/* Lead Form */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10"
-          dir={lang === 'ar' ? 'rtl' : 'ltr'}
-        >
-          <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-            <Mail className="w-4 h-4 text-blue-400" />
-            {t.contactMe}
-          </h3>
-          <div className="space-y-3">
-            <Input placeholder={t.name} className="bg-white/5 border-white/10 text-white" />
-            <Input placeholder={t.email} className="bg-white/5 border-white/10 text-white" />
-            <textarea 
-              placeholder={t.message} 
-              className="w-full min-h-[80px] p-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold">
-              {t.send}
-            </Button>
-          </div>
-        </motion.div>
+
 
         {/* Links Section */}
         <motion.div 
