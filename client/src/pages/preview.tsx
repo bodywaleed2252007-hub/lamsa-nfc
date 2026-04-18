@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X } from "lucide-react";
+import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X, Mail, UserPlus } from "lucide-react";
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
