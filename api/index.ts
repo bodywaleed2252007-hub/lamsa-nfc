@@ -1,26 +1,161 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieSession from "cookie-session";
+import { eq, sql } from "drizzle-orm";
+import { pgTable, text, varchar, boolean } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 
-// Robust storage loading
-let storage: any;
-try {
-  // We use require to avoid top-level import crashes
-  const storageModule = require("../server/storage");
-  storage = storageModule.storage;
-} catch (e) {
-  console.error("Failed to load real storage, falling back to emergency mode", e);
+const scryptAsync = promisify(scrypt);
+
+// --- SCHEMAS ---
+const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+const profiles = pgTable("profiles", {
+  id: varchar("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id),
+  name: text("name").notNull(),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  theme: text("theme").default("glass"),
+  links: text("links").notNull(),
+  customDomain: text("custom_domain"),
+  isEditable: boolean("is_editable").notNull().default(true),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+// --- STORAGE HELPERS ---
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
 }
 
-const app = express();
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
 
+// --- DATABASE CLASS ---
+class DatabaseStorage {
+  private db: any;
+
+  async getDb() {
+    if (this.db) return this.db;
+    const pool = new Pool({ 
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 10000,
+      ssl: { rejectUnauthorized: false }
+    });
+    this.db = drizzle(pool);
+    return this.db;
+  }
+
+  async ensureAdminExists() {
+    try {
+      const db = await this.getDb();
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        CREATE TABLE IF NOT EXISTS profiles (
+          id TEXT PRIMARY KEY,
+          user_id TEXT REFERENCES users(id),
+          name TEXT NOT NULL,
+          bio TEXT,
+          avatar_url TEXT,
+          theme TEXT DEFAULT 'glass',
+          links TEXT NOT NULL,
+          custom_domain TEXT,
+          is_editable BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      const result = await db.select().from(users).where(eq(users.username, "admin"));
+      if (result.length === 0) {
+        const hashed = await hashPassword("admin123");
+        await db.insert(users).values({
+          username: "admin",
+          password: hashed,
+          isAdmin: true,
+          isActive: true
+        });
+        console.log("Admin created: admin/admin123");
+      }
+    } catch (e) {
+      console.error("Migration error:", e);
+    }
+  }
+
+  async getUser(id: string) {
+    const db = await this.getDb();
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result[0];
+  }
+
+  async getUserByUsername(username: string) {
+    const db = await this.getDb();
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result[0];
+  }
+
+  async listUsers() {
+    const db = await this.getDb();
+    return await db.select().from(users);
+  }
+
+  async createUser(data: any) {
+    const db = await this.getDb();
+    const hashed = await hashPassword(data.password);
+    const result = await db.insert(users).values({ ...data, password: hashed }).returning();
+    return result[0];
+  }
+
+  async updateProfile(id: string, updates: any) {
+    const db = await this.getDb();
+    const result = await db.update(profiles).set(updates).where(eq(profiles.id, id)).returning();
+    return result[0];
+  }
+
+  async getProfileByUserId(userId: string) {
+    const db = await this.getDb();
+    const result = await db.select().from(profiles).where(eq(profiles.userId, userId));
+    return result[0];
+  }
+
+  async getProfile(id: string) {
+    const db = await this.getDb();
+    const result = await db.select().from(profiles).where(eq(profiles.id, id));
+    return result[0];
+  }
+
+  async createProfile(data: any) {
+    const db = await this.getDb();
+    const result = await db.insert(profiles).values(data).returning();
+    return result[0];
+  }
+}
+
+const storage = new DatabaseStorage();
+
+// --- EXPRESS APP ---
+const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
-
-// Initialize database admin
-if (storage) {
-  storage.ensureAdminExists().catch((err: any) => console.error("DB Init Error:", err));
-}
-
 
 app.use(
   cookieSession({
@@ -28,292 +163,133 @@ app.use(
     keys: [process.env.SESSION_SECRET || "nfc-card-secret-key-2024"],
     maxAge: 7 * 24 * 60 * 60 * 1000,
     secure: true,
-    sameSite: 'none', // Critical for cross-site cookie handling on some mobile browsers
+    sameSite: 'none',
   })
 );
 
-// Debug Route to verify DB status
+// DB Init
+storage.ensureAdminExists().catch(e => console.error(e));
+
 app.get("/api/debug", async (_req, res) => {
-  const status: any = {
-    env: process.env.NODE_ENV,
-    hasDbUrl: !!process.env.DATABASE_URL,
-    storageType: storage?.constructor?.name,
-  };
-  
-  if (storage && process.env.DATABASE_URL) {
     try {
-      const db = await storage.getDb();
-      await db.execute(sql`SELECT 1`);
-      status.dbConnection = "Connected ✅";
-      
-      const userCount = await storage.listUsers();
-      status.totalUsers = userCount.length;
+        const db = await storage.getDb();
+        await db.execute(sql`SELECT 1`);
+        const usersCount = await storage.listUsers();
+        res.json({ status: "connected", users: usersCount.length });
     } catch (e: any) {
-      status.dbConnection = "Failed ❌: " + e.message;
+        res.status(500).json({ status: "failed", error: e.message });
     }
-  }
-  
-  res.json(status);
 });
 
-// Emergency Status Route (Always works)
-app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    storageLoaded: !!storage,
-    env: process.env.NODE_ENV
-  });
-});
-
-// Resilient Auth Routes
 app.post("/api/auth/login", async (req: Request, res: Response) => {
-  const { username, password } = req.body;
-
-  // Emergency Bypass if DB fails
-  if (!storage) {
-    if (username === 'admin' && password === 'admin123') {
-      req.session!.userId = 'emergency-admin';
-      return res.json({ id: 'emergency-admin', username: 'admin', isAdmin: true });
+    const { username, password } = req.body;
+    if (username === "admin" && password === "admin123" && !process.env.DATABASE_URL) {
+        req.session!.userId = "emergency-admin";
+        return res.json({ username: "admin", isAdmin: true });
     }
-  }
-
-  try {
-    const user = await storage.getUserByUsername(username);
-    if (!user) return res.status(401).json({ message: "Invalid credentials" });
-
-    const valid = await storage.validatePassword(user, password);
-    if (!valid) return res.status(401).json({ message: "Invalid credentials" });
-
-    req.session!.userId = user.id;
-    return res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
-  } catch (err: any) {
-    // Even if DB fails, allow emergency login
-    if (username === 'admin' && password === 'admin123') {
-      req.session!.userId = 'emergency-admin';
-      return res.json({ id: 'emergency-admin', username: 'admin', isAdmin: true });
-    }
-    res.status(500).json({ message: "Database Error: " + err.message });
-  }
-});
-
-app.get("/api/users", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).send("Unauthorized");
-
-  let isAdmin = false;
-  if (req.session.userId === 'emergency-admin') {
-    isAdmin = true;
-  } else {
-    const user = await storage.getUser(req.session.userId);
-    isAdmin = !!user?.isAdmin;
-  }
-
-  if (!isAdmin) return res.status(403).send("Forbidden");
-
-  try {
-    const allUsers = await storage.listUsers();
-    const usersWithProfiles = await Promise.all(allUsers.map(async (u) => {
-      const profile = await storage.getProfileByUserId(u.id);
-      return {
-        id: u.id,
-        username: u.username,
-        isAdmin: u.isAdmin,
-        isActive: u.isActive,
-        profileId: profile?.id,
-        isProfileEditable: profile?.isEditable
-      };
-    }));
-    res.json(usersWithProfiles);
-  } catch (e: any) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
-// Short URL Redirect (/p/id)
-app.get("/p/:id", (req: Request, res: Response) => {
-  const { id } = req.params;
-  res.redirect(`/preview?id=${id}&embedded=true`);
-});
-
-app.post("/api/users", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).send("Unauthorized");
-
-  try {
-    let isAdmin = false;
-    if (req.session.userId === 'emergency-admin') {
-      isAdmin = true;
-    } else {
-      const user = await Promise.race([
-        storage.getUser(req.session.userId),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout checking admin status")), 5000))
-      ]);
-      isAdmin = !!(user as any)?.isAdmin;
-    }
-
-    if (!isAdmin) return res.status(403).send("Forbidden");
-
-    const { username, password, isAdmin: newUserIsAdmin, isActive } = req.body;
-
-    const newUser = await storage.createUser({
-      username,
-      password,
-      isAdmin: !!newUserIsAdmin,
-      isActive: isActive !== undefined ? isActive : true
-    });
-
-    console.log("User created successfully:", newUser.username);
-    res.json(newUser);
-  } catch (e: any) {
-    console.error("CRITICAL ERROR creating user:", e);
-    res.status(500).json({
-      message: "حدث خطأ أثناء الحفظ في قاعدة البيانات. تأكد من أن اسم المستخدم غير مكرر.",
-      debug: e.message
-    });
-  }
-});
-
-app.patch("/api/users/:id", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).send("Unauthorized");
-
-  let isAdmin = false;
-  if (req.session.userId === 'emergency-admin') {
-    isAdmin = true;
-  } else {
-    const user = await storage.getUser(req.session.userId);
-    isAdmin = !!user?.isAdmin;
-  }
-
-  if (!isAdmin) return res.status(403).send("Forbidden");
-
-  const updates = req.body;
-  try {
-    const updated = await storage.updateUser(req.params.id, updates);
-    res.json(updated);
-  } catch (e: any) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
-app.delete("/api/users/:id", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).send("Unauthorized");
-
-  let isAdmin = false;
-  if (req.session.userId === 'emergency-admin') {
-    isAdmin = true;
-  } else {
-    const user = await storage.getUser(req.session.userId);
-    isAdmin = !!user?.isAdmin;
-  }
-
-  if (!isAdmin) return res.status(403).send("Forbidden");
-
-  try {
-    await storage.deleteUser(req.params.id);
-    res.json({ success: true });
-  } catch (e: any) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
-app.get("/api/auth/me", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).json({ message: "Not authenticated" });
-
-  if (req.session.userId === 'emergency-admin') {
-    return res.json({ id: 'emergency-admin', username: 'admin', isAdmin: true });
-  }
-
-  try {
-    const user = await storage.getUser(req.session.userId);
-    if (!user) return res.status(401).json({ message: "Not authenticated" });
-    return res.json({ id: user.id, username: user.username, isAdmin: user.isAdmin });
-  } catch (e) {
-    res.status(401).json({ message: "Session Error" });
-  }
-});
-
-// Admin toggle for editability
-app.patch("/api/profiles/:id/editable", async (req: Request, res: Response) => {
-  if (!req.session?.userId) return res.status(401).send("Unauthorized");
-  try {
-    const user = await storage.getUser(req.session.userId);
-    if (!user?.isAdmin) return res.status(403).send("Forbidden");
-
-    const { isEditable } = req.body;
-    const updated = await storage.updateProfile(req.params.id, { isEditable });
-    res.json(updated);
-  } catch (e: any) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
-app.post("/api/profiles", async (req: Request, res: Response) => {
-  try {
-    if (!storage) throw new Error("Storage not initialized");
-    const profileData = req.body;
-    const userId = req.session?.userId;
-
-    if (!userId) return res.status(401).json({ message: "Login required" });
-
-    // Check if user already has a profile
-    const existing = await storage.getProfileByUserId(userId);
-
-    if (existing) {
-      // Check if it's currently editable
-      if (!existing.isEditable) {
-        return res.status(403).json({ message: "التعديل مغلق حالياً، يرجى التواصل مع الإدارة" });
-      }
-      // Update existing
-      const updated = await storage.updateProfile(existing.id, {
-        ...profileData,
-        links: JSON.stringify(profileData.links || [])
-      });
-      return res.json(updated);
-    }
-
-    // Create new
-    const shortId = Math.random().toString(36).substring(2, 9);
-    
-    // FINAL CHECK: Does this user REALLY have no profile? (Double check for safety)
-    const doubleCheck = await storage.getProfileByUserId(userId);
-    if (doubleCheck) {
-        return res.status(400).json({ message: "لديك بطاقة بالفعل، يمكنك تعديلها فقط" });
-    }
-
     try {
-      const newProfile = await storage.createProfile({
-        ...profileData,
-        id: shortId,
-        userId: userId === 'emergency-admin' ? null : userId,
-        links: JSON.stringify(profileData.links || []),
-        isEditable: true
-      });
-      res.json(newProfile);
-    } catch (createErr: any) {
-      console.error("Critical Profile Creation Error:", createErr);
-      res.status(500).json({ message: "فشل إنشاء البطاقة في قاعدة البيانات: " + createErr.message });
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+            return res.status(401).json({ message: "خطأ في اسم المستخدم أو كلمة المرور" });
+        }
+        req.session!.userId = user.id;
+        res.json(user);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
     }
-  } catch (err: any) {
-    res.status(500).json({ message: "خطأ في السيرفر: " + err.message });
-  }
 });
 
-app.get("/api/profiles/:id", async (req: Request, res: Response) => {
-  try {
-    if (!storage) throw new Error("Storage not initialized");
-    const profile = await storage.getProfile(req.params.id);
-    if (!profile) return res.status(404).json({ message: "Profile not found" });
-    return res.json(profile);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
+app.post("/api/auth/logout", (req, res) => {
+    req.session = null;
+    res.sendStatus(200);
 });
 
-// Final error trap to prevent HTML error pages
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  res.status(500).json({
-    error: "Critical Failure",
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-  });
+app.get("/api/auth/user", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    if (req.session.userId === "emergency-admin") return res.json({ username: "admin", isAdmin: true });
+    try {
+        const user = await storage.getUser(req.session.userId);
+        res.json(user);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/api/users", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    try {
+        const admin = await storage.getUser(req.session.userId);
+        if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
+        const allUsers = await storage.listUsers();
+        res.json(allUsers);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.post("/api/users", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    try {
+        const admin = await storage.getUser(req.session.userId);
+        if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
+        const newUser = await storage.createUser(req.body);
+        res.json(newUser);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/p/:id", (req, res) => {
+    res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+});
+
+app.post("/api/profiles", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) return res.status(401).json({ message: "Login required" });
+    try {
+        const existing = await storage.getProfileByUserId(userId);
+        if (existing) {
+            if (!existing.isEditable) return res.status(403).json({ message: "التعديل مغلق" });
+            const updated = await storage.updateProfile(existing.id, {
+                ...req.body,
+                links: JSON.stringify(req.body.links || [])
+            });
+            return res.json(updated);
+        }
+        const shortId = Math.random().toString(36).substring(2, 9);
+        const newP = await storage.createProfile({
+            ...req.body,
+            id: shortId,
+            userId: userId === "emergency-admin" ? null : userId,
+            links: JSON.stringify(req.body.links || []),
+            isEditable: true
+        });
+        res.json(newP);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/api/profiles/:id", async (req, res) => {
+    try {
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Not found" });
+        res.json(profile);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.patch("/api/profiles/:id/editable", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    try {
+        const admin = await storage.getUser(req.session.userId);
+        if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
+        const updated = await storage.updateProfile(req.params.id, { isEditable: req.body.isEditable });
+        res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
 });
 
 export default app;
