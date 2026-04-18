@@ -221,6 +221,10 @@ app.get("/api/auth/me", (req, res) => {
     res.redirect("/api/auth/user");
 });
 
+app.get("/auth", (req, res) => {
+    res.redirect("/login");
+});
+
 app.get("/api/users", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {

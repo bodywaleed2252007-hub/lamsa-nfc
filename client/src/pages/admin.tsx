@@ -94,8 +94,12 @@ export default function Admin() {
             const pRes = await fetch(`/api/profiles/${u.id}/user`, { credentials: "include" });
             if (pRes.ok) {
               profileData[u.id] = await pRes.json();
+            } else {
+              profileData[u.id] = null;
             }
-          } catch (e) {}
+          } catch (e) {
+            profileData[u.id] = null;
+          }
         }));
         setProfiles(profileData);
       }

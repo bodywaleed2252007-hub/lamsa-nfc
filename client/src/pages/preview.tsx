@@ -34,15 +34,29 @@ export default function Preview({ params }: { params?: { id?: string } }) {
     if (finalId) {
       // Fetch from DB
       fetch(`/api/profiles/${finalId}`)
-        .then(res => res.json())
+        .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && data.name) {
+            // Direct Redirect Logic
+            if (data.isDirectRedirect && data.directUrl) {
+              window.location.href = data.directUrl.startsWith('http') ? data.directUrl : `https://${data.directUrl}`;
+              return;
+            }
+
+            let links = [];
+            try {
+              links = typeof data.links === 'string' ? JSON.parse(data.links) : (data.links || []);
+            } catch(e) {
+              console.error("Failed to parse links:", e);
+              links = [];
+            }
             updateProfile({
               ...data,
-              links: typeof data.links === 'string' ? JSON.parse(data.links) : data.links
+              links: Array.isArray(links) ? links : []
             });
           }
-        });
+        })
+        .catch(err => console.error("Fetch profile failed:", err));
     } else if (dataParam) {
       const decoded = decodeProfileData(dataParam);
       if (decoded) {
@@ -770,7 +784,7 @@ END:VCARD`;
           animate="show"
           className="flex flex-col gap-3 relative z-10"
         >
-          {profile.links.map((link, idx) => (
+          {Array.isArray(profile.links) && profile.links.map((link, idx) => (
             <LinkCard 
               key={idx}
               link={link}
