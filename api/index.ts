@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, integer } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, randomUUID } from "crypto";
 import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
@@ -266,7 +266,7 @@ app.post("/api/profiles", async (req, res) => {
         const db = await storage.getDb();
         const data = req.body;
         if (!data.id) {
-            data.id = require('crypto').randomUUID();
+            data.id = randomUUID();
         }
         const linksStr = Array.isArray(data.links) ? JSON.stringify(data.links) : data.links;
         await db.insert(profiles).values({
