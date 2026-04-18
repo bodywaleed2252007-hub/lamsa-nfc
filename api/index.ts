@@ -219,6 +219,11 @@ app.get("/api/auth/user", async (req, res) => {
     }
 });
 
+// Alias for compatibility
+app.get("/api/auth/me", (req, res) => {
+    res.redirect("/api/auth/user");
+});
+
 app.get("/api/users", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
