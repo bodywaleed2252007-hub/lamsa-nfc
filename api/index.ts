@@ -169,7 +169,7 @@ app.use(
     keys: [process.env.SESSION_SECRET || "nfc-card-secret-key-2024"],
     maxAge: 7 * 24 * 60 * 60 * 1000,
     secure: true,
-    sameSite: 'none',
+    sameSite: 'lax',
   })
 );
 
@@ -244,7 +244,18 @@ app.post("/api/users", async (req, res) => {
     }
 });
 
-app.get("/p/:id", (req, res) => {
+app.get("/api/profiles/:userId/user", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const profile = await storage.getProfileByUserId(req.params.userId);
+        if (!profile) return res.status(404).json({ message: "Not found" });
+        res.json(profile);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/p/:id", async (req, res) => {
     res.redirect(`/preview?id=${req.params.id}&embedded=true`);
 });
 
