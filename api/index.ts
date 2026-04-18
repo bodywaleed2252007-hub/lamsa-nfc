@@ -244,10 +244,16 @@ app.post("/api/users", async (req, res) => {
     try {
         const admin = await storage.getUser(req.session.userId);
         if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
-        const newUser = await storage.createUser(req.body);
+        const newUser = await storage.createUser({
+            ...req.body,
+            isAdmin: !!req.body.isAdmin,
+            isActive: req.body.isActive !== undefined ? req.body.isActive : true
+        });
+        console.log("SUCCESS: User created", newUser.id);
         res.json(newUser);
     } catch (e: any) {
-        res.status(500).json({ message: e.message });
+        console.error("SERVER ERROR: Create user failed", e);
+        res.status(500).json({ message: "خطأ في السيرفر: " + e.message });
     }
 });
 

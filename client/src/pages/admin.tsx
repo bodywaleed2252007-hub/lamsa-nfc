@@ -132,6 +132,9 @@ export default function Admin() {
       setDialogOpen(false);
       alert("تم إنشاء المستخدم بنجاح! 🎉");
       await fetchUsers();
+    } catch (err: any) {
+      console.error("User creation failed:", err);
+      alert("خطأ تقني: " + err.message);
     } finally {
       setCreating(false);
     }
