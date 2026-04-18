@@ -3,6 +3,7 @@ import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loa
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useEffect, useState, useRef } from "react";
 import { decodeProfileData, encodeProfileData } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
