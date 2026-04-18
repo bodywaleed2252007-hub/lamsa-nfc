@@ -217,12 +217,17 @@ app.get("/api/auth/user", async (req, res) => {
     }
 });
 
-app.get("/api/auth/me", (req, res) => {
-    res.redirect("/api/auth/user");
-});
-
-app.get("/auth", (req, res) => {
-    res.redirect("/login");
+// /api/auth/me is a real endpoint (not redirect) to preserve cookies
+app.get("/api/auth/me", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (req.session.userId === "emergency-admin") return res.json({ id: "admin", username: "admin", isAdmin: true, isActive: true });
+    try {
+        const user = await storage.getUser(req.session.userId);
+        if (!user) return res.status(401).json({ message: "User not found" });
+        res.json(user);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
 });
 
 app.get("/api/users", async (req, res) => {

@@ -17,6 +17,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // NFC states
   type NfcStatus = 'idle' | 'waiting' | 'writing' | 'success' | 'error' | 'unsupported';
@@ -29,39 +30,30 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   // Check for data or id param in URL
   useEffect(() => {
     const dataParam = searchParams.get('data');
-    const finalId = id; // use id from params or searchParams
+    const finalId = id;
 
     if (finalId) {
-      // Fetch from DB
+      setIsLoadingProfile(true);
       fetch(`/api/profiles/${finalId}`)
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && data.name) {
-            // Direct Redirect Logic
             if (data.isDirectRedirect && data.directUrl) {
               window.location.href = data.directUrl.startsWith('http') ? data.directUrl : `https://${data.directUrl}`;
               return;
             }
-
-            let links = [];
+            let links: any[] = [];
             try {
               links = typeof data.links === 'string' ? JSON.parse(data.links) : (data.links || []);
-            } catch(e) {
-              console.error("Failed to parse links:", e);
-              links = [];
-            }
-            updateProfile({
-              ...data,
-              links: Array.isArray(links) ? links : []
-            });
+            } catch(e) { links = []; }
+            updateProfile({ ...data, links: Array.isArray(links) ? links : [] });
           }
         })
-        .catch(err => console.error("Fetch profile failed:", err));
+        .catch(err => console.error("Fetch profile failed:", err))
+        .finally(() => setIsLoadingProfile(false));
     } else if (dataParam) {
       const decoded = decodeProfileData(dataParam);
-      if (decoded) {
-        updateProfile(decoded);
-      }
+      if (decoded) updateProfile(decoded);
     }
   }, [id]);
 
@@ -219,8 +211,8 @@ export default function Preview({ params }: { params?: { id?: string } }) {
     if (!profile) return;
     
     // Find phone number and email if they exist in links
-    const phoneLink = profile.links.find(l => l.platform === 'whatsapp' || l.platform === 'call');
-    const emailLink = profile.links.find(l => l.platform === 'email' || l.platform === 'gmail');
+    const phoneLink = safeLinks.find(l => l.platform === 'whatsapp' || l.platform === 'call');
+    const emailLink = safeLinks.find(l => l.platform === 'email' || l.platform === 'gmail');
     
     const phone = phoneLink?.handle || "";
     const email = emailLink?.handle || "";
@@ -243,7 +235,8 @@ END:VCARD`;
     URL.revokeObjectURL(url);
   };
 
-  const hasPhone = profile.links.some(l => l.platform === 'whatsapp' || l.platform === 'call');
+  const safeLinks = Array.isArray(profile.links) ? profile.links : [];
+  const hasPhone = safeLinks.some(l => l.platform === 'whatsapp' || l.platform === 'call');
 
   // Determine styles based on theme
   const getThemeStyles = () => {
@@ -419,6 +412,14 @@ END:VCARD`;
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 }
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#030303]">
+        <Loader2 className="w-8 h-8 animate-spin text-white/50" />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen w-full flex flex-col items-center justify-center p-4 ${theme.container}`}>

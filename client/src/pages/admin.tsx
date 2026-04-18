@@ -57,7 +57,7 @@ interface ManagedUser {
 }
 
 export default function Admin() {
-  const { user, logout, isLoading: authLoading } = useAuth();
+  const { user, logout, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [profiles, setProfiles] = useState<Record<string, any>>({});
