@@ -66,6 +66,7 @@ class DatabaseStorage {
   async ensureAdminExists() {
     try {
       const db = await this.getDb();
+      // 1. Basic Tables
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,25 +85,14 @@ class DatabaseStorage {
           links TEXT NOT NULL,
           custom_domain TEXT,
           is_editable BOOLEAN NOT NULL DEFAULT TRUE,
-          views INTEGER DEFAULT 0,
-          is_direct_redirect BOOLEAN DEFAULT FALSE,
-          direct_url TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
-        -- Robustly add columns if they don't exist
-        DO $$ 
-        BEGIN 
-          BEGIN
-            ALTER TABLE profiles ADD COLUMN views INTEGER DEFAULT 0;
-          EXCEPTION WHEN others THEN END;
-          BEGIN
-            ALTER TABLE profiles ADD COLUMN is_direct_redirect BOOLEAN DEFAULT FALSE;
-          EXCEPTION WHEN others THEN END;
-          BEGIN
-            ALTER TABLE profiles ADD COLUMN direct_url TEXT;
-          EXCEPTION WHEN others THEN END;
-        END $$;
       `);
+
+      // 2. Individual Column Updates (Safer)
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`); } catch(e){}
 
       const result = await db.select().from(users).where(eq(users.username, "admin"));
       if (result.length === 0) {
@@ -113,10 +103,9 @@ class DatabaseStorage {
           isAdmin: true,
           isActive: true
         });
-        console.log("Admin created: admin/admin123");
       }
     } catch (e) {
-      console.error("Migration error:", e);
+      console.error("Migration/Admin check failed:", e);
     }
   }
 
