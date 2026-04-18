@@ -58,6 +58,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
       const res = await fetch("/api/profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(profile),
       });
       
@@ -120,6 +121,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
       const res = await fetch("/api/profiles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(profile),
       });
 

@@ -154,6 +154,7 @@ const storage = new DatabaseStorage();
 
 // --- EXPRESS APP ---
 const app = express();
+app.set('trust proxy', 1); // Required for cookies to work on Vercel
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
@@ -217,7 +218,7 @@ app.post("/api/auth/logout", (req, res) => {
 });
 
 app.get("/api/auth/user", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     if (req.session.userId === "emergency-admin") return res.json({ username: "admin", isAdmin: true });
     try {
         const user = await storage.getUser(req.session.userId);
@@ -228,7 +229,7 @@ app.get("/api/auth/user", async (req, res) => {
 });
 
 app.get("/api/users", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
         const admin = await storage.getUser(req.session.userId);
         if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
@@ -240,7 +241,7 @@ app.get("/api/users", async (req, res) => {
 });
 
 app.post("/api/users", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
         const admin = await storage.getUser(req.session.userId);
         if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
