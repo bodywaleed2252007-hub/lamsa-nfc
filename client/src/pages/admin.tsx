@@ -29,6 +29,7 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
+  Zap,
   LogOut,
   ShieldCheck,
   User,
@@ -65,6 +66,9 @@ export default function Admin() {
   const [newPassword, setNewPassword] = useState("");
   const [newIsAdmin, setNewIsAdmin] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [directRedirectUser, setDirectRedirectUser] = useState<any>(null);
+  const [directUrlValue, setDirectUrlValue] = useState("");
+  const [isDirectValue, setIsDirectValue] = useState(false);
   const [createError, setCreateError] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -137,6 +141,24 @@ export default function Admin() {
       alert("خطأ تقني: " + err.message);
     } finally {
       setCreating(false);
+    }
+  };
+  const handleUpdateDirect = async () => {
+    if (!directRedirectUser) return;
+    try {
+      const res = await fetch(`/api/profiles/${profiles[directRedirectUser.id]?.id}/direct`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isDirectRedirect: isDirectValue, directUrl: directUrlValue }),
+      });
+      if (res.ok) {
+        alert("تم تحديث إعدادات التوجيه! ⚡");
+        setDirectRedirectUser(null);
+        await fetchUsers();
+      }
+    } catch (e) {
+      alert("فشل التحديث");
     }
   };
 
@@ -372,6 +394,43 @@ export default function Admin() {
             </div>
           </DialogContent>
         </Dialog>
+        
+        {/* Direct Redirect Dialog */}
+        <Dialog open={!!directRedirectUser} onOpenChange={open => !open && setDirectRedirectUser(null)}>
+          <DialogContent className="bg-zinc-900 border-white/10 text-white" dir="rtl">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Zap className="w-5 h-5 text-yellow-400" />
+                إعدادات التوجيه المباشر: {directRedirectUser?.username}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                <Label className="text-white/70">تفعيل التوجيه التلقائي</Label>
+                <Button 
+                  onClick={() => setIsDirectValue(!isDirectValue)}
+                  variant="ghost"
+                  className={isDirectValue ? "text-green-400" : "text-white/30"}
+                >
+                  {isDirectValue ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-white/70">رابط التوجيه (مثل إنستجرام)</Label>
+                <Input
+                  value={directUrlValue}
+                  onChange={e => setDirectUrlValue(e.target.value)}
+                  className="bg-white/10 border-white/20 text-white"
+                  placeholder="https://..."
+                />
+              </div>
+              <Button onClick={handleUpdateDirect} className="w-full rounded-xl bg-yellow-600 hover:bg-yellow-500 text-black font-bold">
+                حفظ الإعدادات
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
 
         {/* Users list */}
         {loadingUsers ? (
@@ -464,6 +523,28 @@ export default function Admin() {
                       >
                         <Key className="w-3.5 h-3.5" />
                       </Button>
+
+                      {/* Direct Redirect */}
+                      {u.profileId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const p = profiles[u.id];
+                            setDirectRedirectUser(u);
+                            setDirectUrlValue(p?.directUrl || "");
+                            setIsDirectValue(p?.isDirectRedirect || false);
+                          }}
+                          title="التوجيه المباشر"
+                          className={`rounded-lg w-8 h-8 ${
+                            profiles[u.id]?.isDirectRedirect
+                              ? "text-yellow-400 hover:text-yellow-300 hover:bg-yellow-950/20"
+                              : "text-white/30 hover:text-white/60 hover:bg-white/5"
+                          }`}
+                        >
+                          <Zap className="w-4 h-4" />
+                        </Button>
+                      )}
 
                       {/* Toggle Profile Editable */}
                       {u.profileId && (

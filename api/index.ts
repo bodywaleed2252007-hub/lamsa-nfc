@@ -28,7 +28,9 @@ const profiles = pgTable("profiles", {
   links: text("links").notNull(),
   customDomain: text("custom_domain"),
   isEditable: boolean("is_editable").notNull().default(true),
-  views: sql`integer`.notNull().default(0), 
+  views: sql`integer`.notNull().default(0),
+  isDirectRedirect: boolean("is_direct_redirect").notNull().default(false),
+  directUrl: text("direct_url"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -83,6 +85,8 @@ class DatabaseStorage {
           custom_domain TEXT,
           is_editable BOOLEAN NOT NULL DEFAULT TRUE,
           views INTEGER DEFAULT 0,
+          is_direct_redirect BOOLEAN DEFAULT FALSE,
+          direct_url TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
       `);
@@ -260,8 +264,18 @@ app.post("/api/users", async (req, res) => {
     }
 });
 
-app.get("/p/:id", (req, res) => {
-    res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+app.get("/p/:id", async (req, res) => {
+    try {
+        const profile = await storage.getProfile(req.params.id);
+        if (profile && profile.isDirectRedirect && profile.directUrl) {
+            // Track view even on direct redirect
+            storage.updateProfile(profile.id, { views: (Number(profile.views) || 0) + 1 }).catch(e => console.error(e));
+            return res.redirect(profile.directUrl);
+        }
+        res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+    } catch (e) {
+        res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+    }
 });
 
 app.post("/api/profiles", async (req, res) => {
@@ -306,7 +320,7 @@ app.get("/api/profiles/:id", async (req, res) => {
 });
 
 app.patch("/api/profiles/:id/editable", async (req, res) => {
-    if (!req.session?.userId) return res.status(401).send("Unauthorized");
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
         const admin = await storage.getUser(req.session.userId);
         if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
@@ -316,5 +330,21 @@ app.patch("/api/profiles/:id/editable", async (req, res) => {
         res.status(500).json({ message: e.message });
     }
 });
+
+app.patch("/api/profiles/:id/direct", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const admin = await storage.getUser(req.session.userId);
+        if (!admin?.isAdmin && req.session.userId !== "emergency-admin") return res.status(403).send("Forbidden");
+        const updated = await storage.updateProfile(req.params.id, { 
+            isDirectRedirect: req.body.isDirectRedirect,
+            directUrl: req.body.directUrl 
+        });
+        res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 
 export default app;

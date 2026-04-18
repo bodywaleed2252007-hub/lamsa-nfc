@@ -168,6 +168,39 @@ export default function Preview({ params }: { params?: { id?: string } }) {
     setNfcMessage('');
   };
 
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+
+  const translations = {
+    ar: {
+      saveContact: "حفظ جهة الاتصال",
+      shareLink: "مشاركة الرابط",
+      contactMe: "تواصل معي",
+      name: "الاسم",
+      email: "البريد الإلكتروني",
+      message: "الرسالة",
+      send: "إرسال",
+      success: "تم الإرسال بنجاح!",
+      nfcWait: "قرّب الكارت من موبايلك...",
+      nfcSuccess: "تم الكتابة بنجاح!",
+      nfcError: "فشل الكتابة",
+    },
+    en: {
+      saveContact: "Save Contact",
+      shareLink: "Share Link",
+      contactMe: "Contact Me",
+      name: "Name",
+      email: "Email",
+      message: "Message",
+      send: "Send",
+      success: "Sent Successfully!",
+      nfcWait: "Bring card near phone...",
+      nfcSuccess: "Written Successfully!",
+      nfcError: "Write Failed",
+    }
+  };
+
+  const t = translations[lang];
+
   const handleSaveContact = () => {
     if (!profile) return;
     
@@ -674,15 +707,27 @@ END:VCARD`;
           </motion.div>
         </div>
 
+        {/* Language Toggle */}
+        <div className="absolute top-4 left-4 z-50">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+            className="bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/10"
+          >
+            {lang === 'ar' ? 'EN' : 'AR'}
+          </Button>
+        </div>
+
         {/* Save Contact Button */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
           <Button
             variant="outline"
             className="flex-1 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10"
             onClick={handleSaveContact}
           >
             <UserPlus className="w-4 h-4 ml-2" />
-            حفظ جهة الاتصال
+            {t.saveContact}
           </Button>
           <Button
             className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
@@ -690,9 +735,33 @@ END:VCARD`;
             disabled={isSaving}
           >
             <Share2 className="w-4 h-4 ml-2" />
-            مشاركة الرابط
+            {t.shareLink}
           </Button>
         </div>
+
+        {/* Lead Form */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-8 p-4 rounded-2xl bg-white/5 border border-white/10"
+          dir={lang === 'ar' ? 'rtl' : 'ltr'}
+        >
+          <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+            <Mail className="w-4 h-4 text-blue-400" />
+            {t.contactMe}
+          </h3>
+          <div className="space-y-3">
+            <Input placeholder={t.name} className="bg-white/5 border-white/10 text-white" />
+            <Input placeholder={t.email} className="bg-white/5 border-white/10 text-white" />
+            <textarea 
+              placeholder={t.message} 
+              className="w-full min-h-[80px] p-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold">
+              {t.send}
+            </Button>
+          </div>
+        </motion.div>
 
         {/* Links Section */}
         <motion.div 
