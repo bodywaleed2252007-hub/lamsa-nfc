@@ -28,10 +28,9 @@ const profiles = pgTable("profiles", {
   links: text("links").notNull(),
   customDomain: text("custom_domain"),
   isEditable: boolean("is_editable").notNull().default(true),
-  // Columns commented out to stop crash until DB is updated
-  // views: sql`integer`.default(0),
-  // isDirectRedirect: boolean("is_direct_redirect").default(false),
-  // directUrl: text("direct_url"),
+  views: sql`integer`.default(0),
+  isDirectRedirect: boolean("is_direct_redirect").default(false),
+  directUrl: text("direct_url"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -289,6 +288,13 @@ app.get("/api/profiles/:id", async (req, res) => {
     try {
         const profile = await storage.getProfile(req.params.id);
         if (!profile) return res.status(404).json({ message: "Not found" });
+        
+        // Increment views in background
+        try {
+            const db = await storage.getDb();
+            await db.update(profiles).set({ views: (profile.views || 0) + 1 }).where(eq(profiles.id, profile.id));
+        } catch(e) {}
+
         res.json(profile);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
