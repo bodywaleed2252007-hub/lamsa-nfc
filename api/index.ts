@@ -372,6 +372,15 @@ app.post("/api/profiles/generate", async (req, res) => {
 });
 
 app.get("/p/:id", async (req, res) => {
+    try {
+        const profile = await storage.getProfile(req.params.id);
+        // If the card is unowned, redirect immediately to activation
+        if (profile && profile.userId === null) {
+            return res.redirect(`/login?activate=${req.params.id}`);
+        }
+    } catch (e) {
+        // Ignore DB errors and fallback to normal redirect
+    }
     res.redirect(`/preview?id=${req.params.id}&embedded=true`);
 });
 

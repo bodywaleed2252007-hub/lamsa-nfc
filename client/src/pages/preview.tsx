@@ -40,7 +40,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         .then(data => {
           if (data && data.name) {
             // New logic: if card is unowned, redirect to activation
-            if (data.userId === null && !isEmbedded) {
+            if (data.userId === null) {
               window.location.href = `/login?activate=${finalId}`;
               return;
             }
