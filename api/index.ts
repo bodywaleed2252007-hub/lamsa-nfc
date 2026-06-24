@@ -223,6 +223,12 @@ app.post("/api/auth/register", async (req: Request, res: Response) => {
             return res.status(409).json({ message: "Username already exists" });
         }
         const newUser = await storage.createUser({ username, password, isAdmin: false, isActive: true });
+        
+        // Claim the card immediately for the new user
+        await db.update(profiles)
+            .set({ userId: newUser.id })
+            .where(eq(profiles.id, activateId));
+            
         req.session!.userId = newUser.id;
         res.json({ id: newUser.id, username: newUser.username, isAdmin: newUser.isAdmin });
     } catch (e: any) {

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useAuth } from './auth';
 
 export type SocialLink = {
   platform: 'instagram' | 'tiktok' | 'facebook' | 'whatsapp' | 'snapchat' | 'youtube' | 'linkedin' | 'website' | 'menu' | 'location' | 'call';
@@ -7,6 +8,7 @@ export type SocialLink = {
 };
 
 export type ProfileData = {
+  id?: string;
   name: string;
   bio: string;
   avatarUrl: string;
@@ -38,6 +40,26 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.id && user.id !== 'emergency-admin') {
+      fetch(`/api/profiles/${user.id}/user`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) {
+            let links: any[] = [];
+            try {
+              links = typeof data.links === 'string' ? JSON.parse(data.links) : (data.links || []);
+            } catch(e) {}
+            setProfile({ ...defaultProfile, ...data, links });
+          }
+        })
+        .catch(console.error);
+    } else if (!user) {
+      setProfile(defaultProfile);
+    }
+  }, [user]);
 
   const updateProfile = (data: Partial<ProfileData>) => {
     setProfile(prev => ({ ...prev, ...data }));

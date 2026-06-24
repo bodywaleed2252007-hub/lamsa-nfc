@@ -18,6 +18,7 @@ export default function Login() {
   const [isLogin, setIsLogin] = useState(!activateCardId);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -28,27 +29,27 @@ export default function Login() {
     try {
       if (isLogin) {
         await login(username, password);
+        // If login and activate param exists, claim it
+        if (activateCardId) {
+          const claimRes = await fetch(`/api/profiles/${activateCardId}/claim`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" }
+          });
+          if (!claimRes.ok) {
+            console.error("Failed to claim card:", await claimRes.json());
+          }
+        }
       } else {
-        await register(username, password, activateCardId || undefined);
-      }
-
-      // If there's an activate param, claim the card!
-      if (activateCardId) {
-        const claimRes = await fetch(`/api/profiles/${activateCardId}/claim`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        });
-        if (!claimRes.ok) {
-          const errData = await claimRes.json();
-          console.error("Failed to claim card:", errData);
-          // Redirect to home even if claim fails so user isn't stuck
-        } else {
-          // Claimed successfully, redirect to editor
-          setLocation(`/create/${activateCardId}`);
+        if (password !== confirmPassword) {
+          setError("كلمتا المرور غير متطابقتين");
+          setLoading(false);
           return;
         }
+        await register(username, password, activateCardId || undefined);
+        // Card is already claimed in backend during register
       }
 
+      // Always redirect to landing page after successful auth/activation
       setLocation("/");
     } catch (err: any) {
       setError(err.message || (isLogin ? "فشل تسجيل الدخول" : "فشل إنشاء الحساب"));
@@ -127,6 +128,23 @@ export default function Login() {
                   autoComplete={isLogin ? "current-password" : "new-password"}
                 />
               </div>
+
+              {!isLogin && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-white/70">تأكيد كلمة المرور</Label>
+                  <Input
+                    id="confirmPassword"
+                    data-testid="input-confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="أعد إدخال كلمة المرور"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/30 focus:border-primary"
+                    required
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
 
               {error && (
                 <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 rounded-lg p-3">
