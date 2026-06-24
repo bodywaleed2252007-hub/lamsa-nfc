@@ -288,9 +288,12 @@ app.post("/api/users", async (req, res) => {
 app.get("/api/profiles/:userId/user", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
-        const profile = await storage.getProfileByUserId(req.params.userId);
-        if (!profile) return res.status(404).json({ message: "Not found" });
-        res.json(profile);
+        const db = await storage.getDb();
+        const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, req.params.userId));
+        if (userProfiles.length === 0) return res.status(404).json({ message: "Not found" });
+        // Find the profile they actually edited (not Unclaimed Card)
+        const realProfile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
+        res.json(realProfile);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }
@@ -401,9 +404,19 @@ app.get("/p/:id", async (req, res) => {
 
 app.get("/api/profiles/:id", async (req, res) => {
     try {
-        const profile = await storage.getProfile(req.params.id);
+        let profile = await storage.getProfile(req.params.id);
         if (!profile) return res.status(404).json({ message: "Not found" });
         
+        // If the card is owned by a user, fetch their real profile
+        if (profile.userId !== null) {
+            const db = await storage.getDb();
+            const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, profile.userId));
+            if (userProfiles.length > 0) {
+                const realProfile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
+                profile = realProfile;
+            }
+        }
+
         // Increment views in background safely
         try {
             const db = await storage.getDb();

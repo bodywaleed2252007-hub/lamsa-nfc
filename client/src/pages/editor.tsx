@@ -236,7 +236,19 @@ export default function Editor() {
           {/* Full preview button */}
           <Button
             className="w-full h-12 text-base font-black bg-gradient-to-r from-primary to-blue-600 hover:opacity-90 text-white rounded-2xl shadow-lg shadow-primary/25"
-            onClick={() => setLocation('/preview')}
+            onClick={async () => {
+              try {
+                await fetch("/api/profiles", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify(profile),
+                });
+              } catch (e) {
+                console.error("Failed to auto-save", e);
+              }
+              setLocation('/preview');
+            }}
           >
             <Eye className="w-5 h-5 ml-2" />
             معاينة كاملة وإنهاء
