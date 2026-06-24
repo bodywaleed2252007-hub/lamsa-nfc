@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles, BarChart3, Users, Download } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles, BarChart3, Users, Download, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -171,6 +172,40 @@ export default function Editor() {
                   placeholder="https://yourdomain.com"
                   dir="ltr"
                 />
+              </div>
+
+              {/* Fast Mode Toggle */}
+              <div className="pt-2 border-t border-white/10 mt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold text-white flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-yellow-400" />
+                      وضع التحويل السريع (Fast Mode)
+                    </Label>
+                    <p className="text-[10px] text-white/50">تحويل الزوار لرابط مباشر فوراً عند سكان الكارت</p>
+                  </div>
+                  <Switch 
+                    checked={profile.isDirectRedirect} 
+                    onCheckedChange={(checked) => updateProfile({ isDirectRedirect: checked })}
+                  />
+                </div>
+                
+                {profile.isDirectRedirect && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="space-y-1.5 mt-3"
+                  >
+                    <Label className="text-xs text-white/50">الرابط المباشر</Label>
+                    <Input
+                      value={profile.directUrl || ""}
+                      onChange={(e) => updateProfile({ directUrl: e.target.value })}
+                      className="bg-yellow-500/10 border-yellow-500/20 text-yellow-400 text-left ltr rounded-xl h-10 text-sm placeholder:text-yellow-700/50"
+                      placeholder="https://instagram.com/yourprofile"
+                      dir="ltr"
+                    />
+                  </motion.div>
+                )}
               </div>
             </CardContent>
           </Card>

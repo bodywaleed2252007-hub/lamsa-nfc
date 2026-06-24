@@ -246,31 +246,8 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   const t = translations[lang];
 
   const handleSaveContact = () => {
-    if (!profile) return;
-    
-    // Find phone number and email if they exist in links
-    const phoneLink = safeLinks.find(l => l.platform === 'whatsapp' || l.platform === 'call');
-    const emailLink = safeLinks.find(l => l.platform === 'email' || l.platform === 'gmail');
-    
-    const phone = phoneLink?.handle || "";
-    const email = emailLink?.handle || "";
-    
-    const vcard = `BEGIN:VCARD
-VERSION:3.0
-FN:${profile.name}
-TEL;TYPE=CELL:${phone}
-EMAIL:${email}
-NOTE:تم الحفظ من لمسة NFC - ${profile.bio || ""}
-END:VCARD`;
-
-    const blob = new Blob([vcard], { type: 'text/vcard' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${profile.name}.vcf`;
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(url);
+    if (!profile?.id) return;
+    window.location.href = `/api/profiles/${profile.id}/vcard`;
   };
 
   const safeLinks = Array.isArray(profile.links) ? profile.links : [];

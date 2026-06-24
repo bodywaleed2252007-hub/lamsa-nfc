@@ -414,11 +414,28 @@ app.post("/api/profiles/generate", async (req, res) => {
 
 app.get("/p/:id", async (req, res) => {
     try {
-        const profile = await storage.getProfile(req.params.id);
+        let profile = await storage.getProfile(req.params.id);
+        
         // If the card is unowned, redirect immediately to activation
         if (profile && profile.userId === null) {
             return res.redirect(`/login?activate=${req.params.id}`);
         }
+
+        // Fetch the real profile for the owner
+        if (profile && profile.userId !== null) {
+            const db = await storage.getDb();
+            const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, profile.userId));
+            if (userProfiles.length > 0) {
+                const realProfile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
+                profile = realProfile;
+            }
+        }
+
+        // Fast Mode check
+        if (profile && profile.isDirectRedirect && profile.directUrl) {
+            return res.redirect(profile.directUrl);
+        }
+
     } catch (e) {
         // Ignore DB errors and fallback to normal redirect
     }
@@ -560,6 +577,57 @@ app.get("/api/profiles/:id/leads", async (req, res) => {
 
         const profileLeads = await db.select().from(leads).where(eq(leads.profileId, profile.id));
         res.json(profileLeads);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/api/profiles/:id/vcard", async (req, res) => {
+    try {
+        let profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Not found" });
+
+        // Fetch real profile if owned
+        if (profile.userId !== null) {
+            const db = await storage.getDb();
+            const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, profile.userId));
+            if (userProfiles.length > 0) {
+                profile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
+            }
+        }
+
+        // Extract phone number from whatsapp or call link
+        let phone = "";
+        let email = "";
+        let website = profile.customDomain || "";
+
+        try {
+            const links = JSON.parse(profile.links || "[]");
+            const whatsappLink = links.find((l: any) => l.platform === "whatsapp");
+            const callLink = links.find((l: any) => l.platform === "call");
+            const emailLink = links.find((l: any) => l.platform === "email");
+            const webLink = links.find((l: any) => l.platform === "website");
+
+            if (whatsappLink) phone = whatsappLink.url.replace(/\D/g, "");
+            else if (callLink) phone = callLink.url.replace(/\D/g, "");
+
+            if (emailLink) email = emailLink.url.replace("mailto:", "");
+            if (webLink && !website) website = webLink.url;
+        } catch (e) {}
+
+        const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:${profile.name}
+N:;${profile.name};;;
+${phone ? `TEL;TYPE=CELL:${phone}` : ''}
+${email ? `EMAIL;TYPE=INTERNET:${email}` : ''}
+${website ? `URL:${website}` : ''}
+${profile.bio ? `NOTE:${profile.bio.replace(/\n/g, '\\n')}` : ''}
+END:VCARD`;
+
+        res.setHeader("Content-Type", "text/vcard");
+        res.setHeader("Content-Disposition", `attachment; filename="${profile.name.replace(/\s+/g, "_")}.vcf"`);
+        res.send(vcard);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }
