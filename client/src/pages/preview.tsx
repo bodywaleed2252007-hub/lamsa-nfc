@@ -39,6 +39,12 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && data.name) {
+            // New logic: if card is unowned, redirect to activation
+            if (data.userId === null && !isEmbedded) {
+              window.location.href = `/login?activate=${finalId}`;
+              return;
+            }
+
             if (data.isDirectRedirect && data.directUrl) {
               window.location.href = data.directUrl.startsWith('http') ? data.directUrl : `https://${data.directUrl}`;
               return;

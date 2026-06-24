@@ -6,6 +6,8 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { scrypt, randomBytes, timingSafeEqual, randomUUID } from "crypto";
 import { promisify } from "util";
+import archiver from "archiver";
+import QRCode from "qrcode";
 
 const scryptAsync = promisify(scrypt);
 
@@ -201,6 +203,24 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
     }
 });
 
+app.post("/api/auth/register", async (req: Request, res: Response) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: "Username and password required" });
+    }
+    try {
+        const existing = await storage.getUserByUsername(username);
+        if (existing) {
+            return res.status(409).json({ message: "Username already exists" });
+        }
+        const newUser = await storage.createUser({ username, password, isAdmin: false, isActive: true });
+        req.session!.userId = newUser.id;
+        res.json({ id: newUser.id, username: newUser.username, isAdmin: newUser.isAdmin });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.post("/api/auth/logout", (req, res) => {
     req.session = null;
     res.sendStatus(200);
@@ -293,6 +313,65 @@ app.post("/api/profiles", async (req, res) => {
     }
 });
 
+// Admin endpoint to generate unowned cards
+app.post("/api/profiles/generate", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const adminUser = await storage.getUser(req.session.userId);
+        if (!adminUser?.isAdmin && req.session.userId !== "emergency-admin") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        const db = await storage.getDb();
+        const count = parseInt(req.body.count || "1", 10);
+        const newCards = [];
+        for (let i = 0; i < count; i++) {
+            // Generate a short ID (6 chars)
+            const newId = randomBytes(3).toString("hex"); 
+            const newCard = await db.insert(profiles).values({
+                id: newId,
+                userId: null,
+                name: "Unclaimed Card",
+                bio: "",
+                avatarUrl: "",
+                theme: "glass",
+                links: "[]",
+            }).returning();
+            newCards.push(newCard[0]);
+        }
+
+        if (req.query.format === 'zip') {
+            res.attachment(`cards_${count}.zip`);
+            const archive = archiver('zip', { zlib: { level: 9 } });
+            archive.on('error', (err) => { throw err; });
+            archive.pipe(res);
+            
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+            const host = req.headers.host || 'localhost:5000';
+            const baseUrl = `${protocol}://${host}`;
+            
+            for (const c of newCards) {
+                const cardUrl = `${baseUrl}/p/${c.id}`;
+                const qrBuffer = await QRCode.toBuffer(cardUrl, { errorCorrectionLevel: 'H', width: 400 });
+                archive.append(qrBuffer, { name: `card_${c.id}.png` });
+            }
+            
+            const linksText = newCards.map(c => `${baseUrl}/p/${c.id}`).join('\n');
+            archive.append(linksText, { name: 'links.txt' });
+            
+            await archive.finalize();
+            return;
+        }
+
+        res.json({ success: true, count, cards: newCards });
+    } catch (e: any) {
+        if (!res.headersSent) {
+            res.status(500).json({ message: e.message });
+        } else {
+            console.error("Error during zip generation:", e);
+        }
+    }
+});
+
 app.get("/p/:id", async (req, res) => {
     res.redirect(`/preview?id=${req.params.id}&embedded=true`);
 });
@@ -309,6 +388,29 @@ app.get("/api/profiles/:id", async (req, res) => {
         } catch(e) {}
 
         res.json(profile);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.post("/api/profiles/:id/claim", async (req, res) => {
+    if (!req.session?.userId || req.session.userId === "emergency-admin") {
+        return res.status(401).json({ message: "Unauthorized. Please login to claim." });
+    }
+    try {
+        const db = await storage.getDb();
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) {
+            return res.status(404).json({ message: "Card not found" });
+        }
+        if (profile.userId) {
+            return res.status(403).json({ message: "Card is already owned by someone else" });
+        }
+        const updated = await db.update(profiles)
+            .set({ userId: req.session.userId })
+            .where(eq(profiles.id, req.params.id))
+            .returning();
+        res.json({ success: true, profile: updated[0] });
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }

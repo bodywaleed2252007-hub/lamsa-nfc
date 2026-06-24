@@ -63,6 +63,7 @@ export default function Admin() {
   const [profiles, setProfiles] = useState<Record<string, any>>({});
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [generatingCards, setGeneratingCards] = useState(false);
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -155,6 +156,42 @@ export default function Admin() {
       alert("خطأ تقني: " + err.message);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleGenerateCards = async () => {
+    const countStr = prompt("كم عدد الكروت الفارغة التي تريد توليدها؟", "10");
+    if (!countStr) return;
+    const count = parseInt(countStr, 10);
+    if (isNaN(count) || count <= 0) return;
+
+    setGeneratingCards(true);
+    try {
+      const res = await fetch("/api/profiles/generate?format=zip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ count }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "فشل توليد الكروت");
+      }
+      
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cards_${count}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      alert(`تم توليد ${count} كارت بنجاح وتحميل ملف الـ ZIP اللي فيه الـ QR Codes! 🎉`);
+      fetchUsers();
+    } catch (e: any) {
+      alert("خطأ: " + e.message);
+    } finally {
+      setGeneratingCards(false);
     }
   };
 
@@ -256,6 +293,10 @@ export default function Admin() {
             <p className="text-white/40 text-sm mt-1 mr-11">إدارة مستخدمي لمسة NFC</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button onClick={handleGenerateCards} disabled={generatingCards} variant="secondary" size="sm" className="gap-2 rounded-xl text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20">
+              {generatingCards ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              توليد كروت
+            </Button>
             <Button onClick={fetchUsers} variant="ghost" size="icon" className="text-white/40 hover:text-white hover:bg-white/5 rounded-xl">
               <RefreshCw className="w-4 h-4" />
             </Button>

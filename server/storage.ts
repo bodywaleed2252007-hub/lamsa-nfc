@@ -49,7 +49,8 @@ class MemoryStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = Math.random().toString(36).substring(2, 9);
-    const user: User = { ...insertUser, id, isAdmin: !!insertUser.isAdmin, isActive: insertUser.isActive ?? true };
+    const hashedPassword = await hashPassword(insertUser.password);
+    const user: User = { ...insertUser, password: hashedPassword, id, isAdmin: !!insertUser.isAdmin, isActive: insertUser.isActive ?? true };
     this.users.set(id, user);
     return user;
   }
