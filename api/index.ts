@@ -6,7 +6,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { scrypt, randomBytes, timingSafeEqual, randomUUID } from "crypto";
 import { promisify } from "util";
-import archiver from "archiver";
+import JSZip from "jszip";
 import QRCode from "qrcode";
 
 const scryptAsync = promisify(scrypt);
@@ -340,10 +340,7 @@ app.post("/api/profiles/generate", async (req, res) => {
         }
 
         if (req.query.format === 'zip') {
-            res.attachment(`cards_${count}.zip`);
-            const archive = archiver('zip', { zlib: { level: 9 } });
-            archive.on('error', (err) => { throw err; });
-            archive.pipe(res);
+            const zip = new JSZip();
             
             const protocol = req.headers['x-forwarded-proto'] || req.protocol;
             const host = req.headers.host || 'localhost:5000';
@@ -352,13 +349,15 @@ app.post("/api/profiles/generate", async (req, res) => {
             for (const c of newCards) {
                 const cardUrl = `${baseUrl}/p/${c.id}`;
                 const qrBuffer = await QRCode.toBuffer(cardUrl, { errorCorrectionLevel: 'H', width: 400 });
-                archive.append(qrBuffer, { name: `card_${c.id}.png` });
+                zip.file(`card_${c.id}.png`, qrBuffer);
             }
             
             const linksText = newCards.map(c => `${baseUrl}/p/${c.id}`).join('\n');
-            archive.append(linksText, { name: 'links.txt' });
+            zip.file('links.txt', linksText);
             
-            await archive.finalize();
+            const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+            res.attachment(`cards_${count}.zip`);
+            res.send(zipBuffer);
             return;
         }
 
