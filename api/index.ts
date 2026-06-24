@@ -204,11 +204,20 @@ app.post("/api/auth/login", async (req: Request, res: Response) => {
 });
 
 app.post("/api/auth/register", async (req: Request, res: Response) => {
-    const { username, password } = req.body;
+    const { username, password, activateId } = req.body;
     if (!username || !password) {
         return res.status(400).json({ message: "Username and password required" });
     }
+    if (!activateId) {
+        return res.status(403).json({ message: "عذراً، يجب امتلاك بطاقة لمسة وتفعيلها أولاً لإنشاء حساب جديد" });
+    }
     try {
+        const db = await storage.getDb();
+        const profile = await storage.getProfile(activateId);
+        if (!profile || profile.userId !== null) {
+            return res.status(403).json({ message: "عذراً، كود التفعيل غير صالح أو تم استخدامه مسبقاً" });
+        }
+
         const existing = await storage.getUserByUsername(username);
         if (existing) {
             return res.status(409).json({ message: "Username already exists" });

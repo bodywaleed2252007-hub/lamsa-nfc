@@ -15,7 +15,7 @@ export default function Login() {
   const searchParams = new URLSearchParams(searchString);
   const activateCardId = searchParams.get("activate");
 
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(!activateCardId);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -29,7 +29,7 @@ export default function Login() {
       if (isLogin) {
         await login(username, password);
       } else {
-        await register(username, password);
+        await register(username, password, activateCardId || undefined);
       }
 
       // If there's an activate param, claim the card!
@@ -135,10 +135,17 @@ export default function Login() {
                 </div>
               )}
 
+              {!isLogin && !activateCardId && (
+                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 rounded-lg p-3 mb-4 text-center">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <span>عذراً، يجب امتلاك بطاقة لمسة وتفعيلها أولاً لإنشاء حساب جديد</span>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 data-testid="button-login"
-                disabled={loading}
+                disabled={loading || (!isLogin && !activateCardId)}
                 className="w-full h-11 bg-primary hover:bg-primary/90 font-bold rounded-xl"
               >
                 {loading ? (
