@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, ArrowLeft, Eye, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 
 const PLATFORMS = [
   { id: 'instagram', name: 'Instagram', color: '#E1306C' },
@@ -38,6 +39,7 @@ export default function Editor() {
   const [, params] = useRoute("/create/:templateId");
   const [, setLocation] = useLocation();
   const { profile, updateProfile, addLink, removeLink, updateLink } = useProfile();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (params?.templateId) {
@@ -233,26 +235,53 @@ export default function Editor() {
             </CardContent>
           </Card>
 
-          {/* Full preview button */}
-          <Button
-            className="w-full h-12 text-base font-black bg-gradient-to-r from-primary to-blue-600 hover:opacity-90 text-white rounded-2xl shadow-lg shadow-primary/25"
-            onClick={async () => {
-              try {
-                await fetch("/api/profiles", {
+          {/* Full preview & Save buttons */}
+          <div className="flex gap-3">
+            <Button
+              className="flex-1 h-12 text-base font-black bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 text-white rounded-2xl shadow-lg"
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/profiles", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(profile),
+                  });
+                  if (res.ok) {
+                    toast({
+                      title: "✅ تم بنجاح",
+                      description: "تم حفظ بياناتك بنجاح!",
+                    });
+                  } else {
+                    toast({ title: "خطأ", description: "حدث خطأ أثناء الحفظ", variant: "destructive" });
+                  }
+                } catch (e) {
+                  console.error("Failed to save", e);
+                  toast({ title: "خطأ", description: "فشل الاتصال بالخادم", variant: "destructive" });
+                }
+              }}
+            >
+              <Save className="w-5 h-5 ml-2" />
+              حفظ التعديلات
+            </Button>
+            <Button
+              variant="outline"
+              className="h-12 px-4 text-sm font-black bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10"
+              onClick={() => {
+                // Auto-save silently before previewing
+                fetch("/api/profiles", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   credentials: "include",
                   body: JSON.stringify(profile),
-                });
-              } catch (e) {
-                console.error("Failed to auto-save", e);
-              }
-              setLocation('/preview');
-            }}
-          >
-            <Eye className="w-5 h-5 ml-2" />
-            معاينة كاملة وإنهاء
-          </Button>
+                }).catch(e => console.error(e));
+                setLocation('/preview');
+              }}
+            >
+              <Eye className="w-5 h-5 ml-2" />
+              معاينة
+            </Button>
+          </div>
         </div>
       </div>
 

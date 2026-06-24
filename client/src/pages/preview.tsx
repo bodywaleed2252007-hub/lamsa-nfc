@@ -14,6 +14,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   const id = params?.id || searchParams.get("id");
   // Check if embedded mode from URL params
   const isEmbedded = searchParams.get("embedded") === "true";
+  const isPublicView = !!id;
   
   const { profile, updateProfile } = useProfile();
   const { toast } = useToast();
@@ -430,8 +431,8 @@ END:VCARD`;
 
   return (
     <div className={`min-h-screen w-full flex flex-col items-center justify-center p-4 ${theme.container}`}>
-      {/* If not embedded, show top action bar */}
-      {!isEmbedded && (
+      {/* Show top action bar ONLY if not embedded AND not public view (local preview from editor) */}
+      {!isEmbedded && !isPublicView && (
         <>
           <div className="fixed top-0 left-0 w-full p-2 flex flex-wrap justify-center gap-2 z-50 bg-black/80 backdrop-blur-lg border-b border-white/10 sm:justify-between sm:p-3" dir="rtl">
             <Button variant="outline" size="sm" onClick={() => window.history.back()} className="text-[10px] h-8 px-2 sm:text-xs sm:h-9 sm:px-4">
@@ -504,7 +505,7 @@ END:VCARD`;
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full max-w-md rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden ${theme.card} ${!isEmbedded ? (nfcStatus === 'waiting' || nfcStatus === 'error' || nfcStatus === 'unsupported' ? 'mt-24' : 'mt-16') : ''}`}
+        className={`w-full max-w-md rounded-[2.5rem] p-6 md:p-8 relative overflow-hidden ${theme.card} ${(!isEmbedded && !isPublicView) ? (nfcStatus === 'waiting' || nfcStatus === 'error' || nfcStatus === 'unsupported' ? 'mt-24' : 'mt-16') : ''}`}
       >
         {/* Background blobs for glass theme - customized for the screenshot look */}
         {profile.theme === 'glass' && (
