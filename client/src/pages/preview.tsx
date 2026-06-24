@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
-import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X, Mail, UserPlus } from "lucide-react";
+import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X, Mail, UserPlus, Send } from "lucide-react";
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useEffect, useState, useRef } from "react";
 import { decodeProfileData, encodeProfileData } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -173,6 +175,34 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         setNfcMessage(err?.message || 'فشل الكتابة على الكارت');
         setTimeout(() => setNfcStatus('idle'), 3000);
       }
+    }
+  };
+
+  const handleSubmitLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile.id) return;
+    if (!contactForm.name || !contactForm.phone) {
+      toast({ title: "خطأ", description: "الاسم ورقم الهاتف مطلوبان", variant: "destructive" });
+      return;
+    }
+    setIsSubmittingLead(true);
+    try {
+      const res = await fetch(`/api/profiles/${profile.id}/leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactForm),
+      });
+      if (res.ok) {
+        toast({ title: "✅ تم الإرسال", description: "تم إرسال بياناتك بنجاح!" });
+        setLeadModalOpen(false);
+        setContactForm({ name: "", phone: "", email: "", message: "" });
+      } else {
+        toast({ title: "خطأ", description: "حدث خطأ أثناء الإرسال", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "خطأ", description: "حدث خطأ في الاتصال", variant: "destructive" });
+    } finally {
+      setIsSubmittingLead(false);
     }
   };
 
@@ -395,7 +425,7 @@ END:VCARD`;
           textGradient: "text-transparent bg-clip-text bg-gradient-to-r from-orange-300 to-teal-300",
           linkCard: "bg-slate-900/50 border border-orange-900/30 hover:border-orange-400/40 hover:bg-orange-950/15"
         };
-      default: // glass (Updated to match the screenshot provided)
+      default: // glass
         return {
           container: "bg-[#030303] text-white",
           card: "bg-[#0A0A0A] border border-white/5 shadow-2xl",
@@ -743,7 +773,7 @@ END:VCARD`;
         </div>
 
         {/* Save Contact Button */}
-        <div className="flex gap-2 mb-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+        <div className="flex gap-2 mb-2" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
           <Button
             variant="outline"
             className="flex-1 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10"
@@ -762,6 +792,68 @@ END:VCARD`;
           </Button>
         </div>
 
+        {/* Exchange Contacts Button & Modal */}
+        <div className="w-full mb-6">
+          <Dialog open={leadModalOpen} onOpenChange={setLeadModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold h-11 shadow-lg shadow-purple-500/20">
+                <Send className="w-4 h-4 ml-2" />
+                شارك بياناتك معي
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md bg-zinc-950 border border-white/10 text-white" dir="rtl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-center">تبادل جهات الاتصال</DialogTitle>
+                <DialogDescription className="text-center text-zinc-400">
+                  اترك بياناتك ليتمكن {profile.name} من التواصل معك لاحقاً.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmitLead} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Input 
+                    placeholder="الاسم بالكامل *" 
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    className="bg-zinc-900 border-white/10 text-white h-12"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input 
+                    placeholder="رقم الهاتف (واتساب) *" 
+                    value={contactForm.phone}
+                    onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                    className="bg-zinc-900 border-white/10 text-white h-12 text-right"
+                    dir="ltr"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Input 
+                    type="email"
+                    placeholder="البريد الإلكتروني (اختياري)" 
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    className="bg-zinc-900 border-white/10 text-white h-12 text-right"
+                    dir="ltr"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Textarea 
+                    placeholder="رسالة قصيرة (اختياري)" 
+                    value={contactForm.message}
+                    onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                    className="bg-zinc-900 border-white/10 text-white resize-none h-24"
+                  />
+                </div>
+                <Button type="submit" disabled={isSubmittingLead} className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg mt-2">
+                  {isSubmittingLead ? <Loader2 className="w-5 h-5 animate-spin" /> : "إرسال البيانات"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
 
 
         {/* Links Section */}
@@ -776,6 +868,7 @@ END:VCARD`;
               key={idx}
               link={link}
               cardStyle={theme.linkCard}
+              profileId={profile.id}
             />
           ))}
         </motion.div>
@@ -799,7 +892,7 @@ END:VCARD`;
   );
 }
 
-function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string }) {
+function LinkCard({ link, cardStyle, profileId }: { link: SocialLink, cardStyle?: string, profileId?: string }) {
   const item = {
     hidden: { opacity: 0, x: -20 },
     show: { opacity: 1, x: 0 }
@@ -837,6 +930,15 @@ function LinkCard({ link, cardStyle }: { link: SocialLink, cardStyle?: string })
       href={getValidUrl(link.url)}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => {
+        if (profileId) {
+          fetch(`/api/profiles/${profileId}/click`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ platform: link.platform })
+          }).catch(() => {});
+        }
+      }}
       className={`group flex items-center gap-4 p-4 rounded-2xl relative overflow-hidden transition-all duration-300 ${cardStyle}`}
     >
       <div className="flex-1 flex flex-col min-w-0 text-right">

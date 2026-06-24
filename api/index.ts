@@ -33,6 +33,17 @@ const profiles = pgTable("profiles", {
   views: integer("views").default(0),
   isDirectRedirect: boolean("is_direct_redirect").default(false),
   directUrl: text("direct_url"),
+  linkClicks: text("link_clicks").default("{}"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+const leads = pgTable("leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  profileId: varchar("profile_id").references(() => profiles.id),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email"),
+  message: text("message"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -88,10 +99,22 @@ class DatabaseStorage {
         );
       `);
       
-      // Attempt to add columns one by one
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS link_clicks TEXT DEFAULT '{}'`); } catch(e){}
+
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS leads (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          profile_id TEXT REFERENCES profiles(id),
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          email TEXT,
+          message TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
 
       const result = await db.select().from(users).where(eq(users.username, "admin"));
       if (result.length === 0) {
@@ -470,6 +493,73 @@ app.patch("/api/profiles/:id/direct", async (req, res) => {
             directUrl: req.body.directUrl 
         });
         res.json(updated);
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.post("/api/profiles/:id/click", async (req, res) => {
+    try {
+        const db = await storage.getDb();
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Not found" });
+        
+        const platform = req.body.platform;
+        if (!platform) return res.status(400).json({ message: "Platform is required" });
+
+        let currentClicks: Record<string, number> = {};
+        try {
+            currentClicks = profile.linkClicks ? JSON.parse(profile.linkClicks) : {};
+        } catch(e) {}
+
+        currentClicks[platform] = (currentClicks[platform] || 0) + 1;
+
+        await db.update(profiles).set({ linkClicks: JSON.stringify(currentClicks) }).where(eq(profiles.id, profile.id));
+        res.json({ success: true, clicks: currentClicks });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.post("/api/profiles/:id/leads", async (req, res) => {
+    try {
+        const db = await storage.getDb();
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+        const { name, phone, email, message } = req.body;
+        if (!name || !phone) return res.status(400).json({ message: "Name and phone are required" });
+
+        const newLead = await db.insert(leads).values({
+            profileId: profile.id,
+            name,
+            phone,
+            email: email || "",
+            message: message || ""
+        }).returning();
+
+        res.json({ success: true, lead: newLead[0] });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
+app.get("/api/profiles/:id/leads", async (req, res) => {
+    if (!req.session?.userId && req.session?.userId !== "emergency-admin") {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+        const db = await storage.getDb();
+        const profile = await storage.getProfile(req.params.id);
+        if (!profile) return res.status(404).json({ message: "Profile not found" });
+
+        // Ensure the logged in user actually owns this profile
+        if (profile.userId !== req.session.userId && req.session.userId !== "emergency-admin") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+
+        const profileLeads = await db.select().from(leads).where(eq(leads.profileId, profile.id));
+        res.json(profileLeads);
     } catch (e: any) {
         res.status(500).json({ message: e.message });
     }

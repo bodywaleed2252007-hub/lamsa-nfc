@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles, BarChart3, Users, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -40,6 +41,26 @@ export default function Editor() {
   const [, setLocation] = useLocation();
   const { profile, updateProfile, addLink, removeLink, updateLink } = useProfile();
   const { toast } = useToast();
+  const [leads, setLeads] = useState<any[]>([]);
+  const [clicks, setClicks] = useState<Record<string, number>>({});
+  
+  useEffect(() => {
+    if (profile?.id) {
+      // Load Leads
+      fetch(`/api/profiles/${profile.id}/leads`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setLeads(data);
+        }).catch(() => {});
+        
+      // Load Clicks
+      if (profile.linkClicks) {
+        try {
+          setClicks(JSON.parse(profile.linkClicks));
+        } catch(e) {}
+      }
+    }
+  }, [profile?.id, profile?.linkClicks]);
 
   useEffect(() => {
     if (params?.templateId) {
@@ -79,7 +100,15 @@ export default function Editor() {
         </div>
 
         <div className="flex-1 p-5 space-y-5" dir="rtl">
-          {/* Basic Info */}
+          <Tabs defaultValue="editor" className="w-full">
+            <TabsList className="w-full flex h-12 bg-black/40 border border-white/10 rounded-2xl p-1 mb-6">
+              <TabsTrigger value="editor" className="flex-1 rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white text-xs font-bold">تعديل الكارت</TabsTrigger>
+              <TabsTrigger value="analytics" className="flex-1 rounded-xl data-[state=active]:bg-purple-600 data-[state=active]:text-white text-xs font-bold">الإحصائيات</TabsTrigger>
+              <TabsTrigger value="leads" className="flex-1 rounded-xl data-[state=active]:bg-green-600 data-[state=active]:text-white text-xs font-bold">العملاء</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="editor" className="space-y-5 mt-0">
+              {/* Basic Info */}
           <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
             <CardHeader className="pb-3 pt-4 px-4">
               <CardTitle className="text-sm font-bold text-white/80 flex items-center gap-2">
@@ -282,6 +311,106 @@ export default function Editor() {
               معاينة
             </Button>
           </div>
+          </TabsContent>
+
+            {/* Analytics Tab */}
+            <TabsContent value="analytics" className="space-y-5 mt-0">
+              <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-purple-500/10 to-transparent">
+                  <CardTitle className="text-sm font-bold text-white/80 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-purple-400" />
+                    نظرة عامة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 flex gap-4">
+                  <div className="flex-1 bg-black/30 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center">
+                    <span className="text-white/50 text-xs font-bold mb-1">إجمالي الزيارات</span>
+                    <span className="text-3xl font-black text-white">{profile.views || 0}</span>
+                  </div>
+                  <div className="flex-1 bg-black/30 rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center">
+                    <span className="text-white/50 text-xs font-bold mb-1">إجمالي النقرات</span>
+                    <span className="text-3xl font-black text-purple-400">
+                      {Object.values(clicks).reduce((a, b) => a + b, 0)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <CardTitle className="text-sm font-bold text-white/80">النقرات حسب المنصة</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  {Object.keys(clicks).length === 0 ? (
+                    <div className="text-center text-white/40 text-xs py-4">لا توجد نقرات حتى الآن</div>
+                  ) : (
+                    Object.entries(clicks).sort((a, b) => b[1] - a[1]).map(([platform, count]) => (
+                      <div key={platform} className="flex items-center justify-between bg-black/30 p-3 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white capitalize">{platform}</span>
+                        </div>
+                        <span className="text-sm font-black text-purple-400">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Leads Tab */}
+            <TabsContent value="leads" className="space-y-5 mt-0">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-green-400" />
+                  جهات الاتصال المستلمة
+                </h3>
+                <Button 
+                  size="sm" 
+                  className="h-8 px-3 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs gap-2"
+                  onClick={() => {
+                    const csv = "الاسم,الهاتف,البريد,الرسالة,التاريخ\n" + leads.map(l => `${l.name},${l.phone},${l.email || ''},${l.message || ''},${new Date(l.createdAt).toLocaleDateString()}`).join("\n");
+                    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `leads-${profile.name}.csv`;
+                    a.click();
+                  }}
+                >
+                  <Download className="w-3 h-3" />
+                  تحميل CSV
+                </Button>
+              </div>
+
+              {leads.length === 0 ? (
+                <div className="bg-white/4 border border-white/8 rounded-2xl p-8 flex flex-col items-center justify-center text-center">
+                  <Users className="w-12 h-12 text-white/10 mb-3" />
+                  <p className="text-sm text-white/60 font-bold mb-1">لا توجد جهات اتصال بعد</p>
+                  <p className="text-xs text-white/40">عندما يقوم الزوار بترك بياناتهم ستظهر هنا</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {leads.map((lead, idx) => (
+                    <div key={idx} className="bg-white/4 border border-white/8 rounded-2xl p-4 space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{lead.name}</h4>
+                          <p className="text-xs text-green-400 font-medium mt-0.5" dir="ltr">{lead.phone}</p>
+                        </div>
+                        <span className="text-[10px] text-white/40">{new Date(lead.createdAt).toLocaleDateString()}</span>
+                      </div>
+                      {lead.email && <p className="text-xs text-white/60">{lead.email}</p>}
+                      {lead.message && (
+                        <div className="bg-black/30 p-2.5 rounded-lg border border-white/5 mt-2">
+                          <p className="text-xs text-white/80">{lead.message}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
