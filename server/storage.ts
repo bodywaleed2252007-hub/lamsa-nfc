@@ -214,7 +214,7 @@ class DatabaseStorage implements IStorage {
         );
         CREATE TABLE IF NOT EXISTS profiles (
           id TEXT PRIMARY KEY,
-          user_id TEXT REFERENCES users(id),
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
           name TEXT NOT NULL,
           bio TEXT,
           avatar_url TEXT,
@@ -225,6 +225,9 @@ class DatabaseStorage implements IStorage {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
       `);
+
+      try { await db.execute(sql`ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_user_id_fkey`); } catch(e) {}
+      try { await db.execute(sql`ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch(e) {}
 
       const admin = await this.getUserByUsername("admin");
       if (!admin) {

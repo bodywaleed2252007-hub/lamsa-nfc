@@ -13,7 +13,7 @@ export const users = pgTable("users", {
 
 export const profiles = pgTable("profiles", {
   id: varchar("id").primaryKey(), // We'll generate custom short IDs
-  userId: varchar("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),

@@ -22,7 +22,7 @@ const users = pgTable("users", {
 
 const profiles = pgTable("profiles", {
   id: varchar("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   bio: text("bio"),
   avatarUrl: text("avatar_url"),
@@ -39,7 +39,7 @@ const profiles = pgTable("profiles", {
 
 const leads = pgTable("leads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  profileId: varchar("profile_id").references(() => profiles.id),
+  profileId: varchar("profile_id").references(() => profiles.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   email: text("email"),
@@ -87,7 +87,7 @@ class DatabaseStorage {
         );
         CREATE TABLE IF NOT EXISTS profiles (
           id TEXT PRIMARY KEY,
-          user_id TEXT REFERENCES users(id),
+          user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
           name TEXT NOT NULL,
           bio TEXT,
           avatar_url TEXT,
@@ -99,6 +99,10 @@ class DatabaseStorage {
         );
       `);
       
+      // ALTER constraints for cascade delete if tables already exist
+      try { await db.execute(sql`ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_user_id_fkey`); } catch(e) {}
+      try { await db.execute(sql`ALTER TABLE profiles ADD CONSTRAINT profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`); } catch(e) {}
+      
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`); } catch(e){}
@@ -107,7 +111,7 @@ class DatabaseStorage {
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS leads (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-          profile_id TEXT REFERENCES profiles(id),
+          profile_id TEXT REFERENCES profiles(id) ON DELETE CASCADE,
           name TEXT NOT NULL,
           phone TEXT NOT NULL,
           email TEXT,
@@ -115,6 +119,10 @@ class DatabaseStorage {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
       `);
+      
+      // ALTER constraints for cascade delete if tables already exist
+      try { await db.execute(sql`ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_profile_id_fkey`); } catch(e) {}
+      try { await db.execute(sql`ALTER TABLE leads ADD CONSTRAINT leads_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE`); } catch(e) {}
 
       const result = await db.select().from(users).where(eq(users.username, "admin"));
       if (result.length === 0) {
@@ -431,9 +439,19 @@ app.get("/p/:id", async (req, res) => {
             }
         }
 
-        // Fast Mode check
-        if (profile && profile.isDirectRedirect && profile.directUrl) {
-            return res.redirect(profile.directUrl);
+        // Fast Mode check (SAFE with Try-Catch)
+        try {
+            if (profile && profile.isDirectRedirect === true && profile.directUrl) {
+                let redirectUrl = profile.directUrl.trim();
+                if (redirectUrl) {
+                    if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+                        redirectUrl = 'https://' + redirectUrl;
+                    }
+                    return res.redirect(redirectUrl);
+                }
+            }
+        } catch (fastModeErr) {
+            console.error("Fast mode routing error:", fastModeErr);
         }
 
     } catch (e) {
