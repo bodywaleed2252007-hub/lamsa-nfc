@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X, Mail, UserPlus, Send } from "lucide-react";
+import { ExternalLink, Sparkles, QrCode, Share2, Copy, Check, Wifi, WifiOff, Loader2, X, Mail, UserPlus, Send, CreditCard, Smartphone } from "lucide-react";
 import { useProfile, SocialLink, ProfileData } from "@/lib/store";
 import { useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,9 @@ export default function Preview({ params }: { params?: { id?: string } }) {
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [contactForm, setContactForm] = useState({ name: "", phone: "", email: "", message: "" });
   const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+
+  // Quick Pay state
+  const [quickPayCopied, setQuickPayCopied] = useState(false);
 
   // Check for data or id param in URL
   useEffect(() => {
@@ -854,6 +857,77 @@ export default function Preview({ params }: { params?: { id?: string } }) {
             />
           ))}
         </motion.div>
+
+        {/* Quick Pay Button - shown only if configured */}
+        {profile.quickPayType && profile.quickPayValue && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="relative z-20 mt-5"
+          >
+            <button
+              onClick={async () => {
+                if (profile.quickPayType === 'instapay') {
+                  const url = profile.quickPayValue!.startsWith('http') ? profile.quickPayValue! : `https://${profile.quickPayValue}`;
+                  window.open(url, '_blank');
+                } else {
+                  try {
+                    await navigator.clipboard.writeText(profile.quickPayValue!);
+                  } catch {
+                    const el = document.createElement('textarea');
+                    el.value = profile.quickPayValue!;
+                    document.body.appendChild(el);
+                    el.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(el);
+                  }
+                  setQuickPayCopied(true);
+                  setTimeout(() => setQuickPayCopied(false), 2500);
+                }
+              }}
+              className="w-full relative overflow-hidden group rounded-2xl h-14 font-black text-base tracking-wide transition-all duration-300 active:scale-95"
+              style={{
+                background: profile.quickPayType === 'instapay'
+                  ? 'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #ec4899 100%)'
+                  : 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f97316 100%)',
+                boxShadow: profile.quickPayType === 'instapay'
+                  ? '0 8px 30px -4px rgba(124, 58, 237, 0.6), 0 0 0 1px rgba(168, 85, 247, 0.2)'
+                  : '0 8px 30px -4px rgba(220, 38, 38, 0.6), 0 0 0 1px rgba(239, 68, 68, 0.2)',
+              }}
+            >
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+              
+              {/* Button content */}
+              <div className="relative z-10 flex items-center justify-center gap-3 text-white">
+                {quickPayCopied ? (
+                  <>
+                    <Check className="w-5 h-5 text-green-300" />
+                    <span className="text-green-200">تم نسخ الرقم! افتح فودافون كاش وادفع 💚</span>
+                  </>
+                ) : profile.quickPayType === 'instapay' ? (
+                  <>
+                    <CreditCard className="w-5 h-5" />
+                    <span>ادفع لي الآن 💳</span>
+                  </>
+                ) : (
+                  <>
+                    <Smartphone className="w-5 h-5" />
+                    <span>اضغط لنسخ رقم الكاش والدفع 📱</span>
+                  </>
+                )}
+              </div>
+
+              {/* Bottom label */}
+              {!quickPayCopied && (
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[9px] text-white/50 font-normal tracking-widest uppercase">
+                  {profile.quickPayType === 'instapay' ? 'InstaPay · آمن وسريع' : 'Vodafone Cash · انسخ الرقم وادفع'}
+                </div>
+              )}
+            </button>
+          </motion.div>
+        )}
       </motion.main>
       
       <div className="mt-8 flex flex-col items-center gap-2">

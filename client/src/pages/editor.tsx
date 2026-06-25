@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles, BarChart3, Users, Download, Zap } from "lucide-react";
+import { Trash2, Plus, ArrowLeft, Eye, Save, Instagram, Facebook, Youtube, Globe, Linkedin, Phone, UtensilsCrossed, MapPin, Sparkles, BarChart3, Users, Download, Zap, CreditCard } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
@@ -207,6 +207,59 @@ export default function Editor() {
                   </motion.div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Pay Card */}
+          <Card className="bg-white/4 border-white/8 rounded-2xl overflow-hidden">
+            <CardHeader className="pb-3 pt-4 px-4">
+              <CardTitle className="text-sm font-bold text-white/80 flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-emerald-500/20 flex items-center justify-center">
+                  <CreditCard className="w-3 h-3 text-emerald-400" />
+                </div>
+                إعدادات الدفع السريع (Quick Pay)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-white/50">نوع الدفع</Label>
+                <Select
+                  value={profile.quickPayType || ""}
+                  onValueChange={(val) => updateProfile({ quickPayType: val as any || null })}
+                >
+                  <SelectTrigger className="bg-black/30 border-white/8 text-white text-right text-sm h-10 rounded-xl">
+                    <SelectValue placeholder="اختر طريقة الدفع" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-white/10">
+                    <SelectItem value="instapay" className="text-white text-sm">💳 إنستاباي (InstaPay)</SelectItem>
+                    <SelectItem value="vodafone_cash" className="text-white text-sm">📱 فودافون كاش</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {profile.quickPayType && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-1.5"
+                >
+                  <Label className="text-xs text-white/50">
+                    {profile.quickPayType === 'instapay' ? 'رابط الإنستاباي' : 'رقم فودافون كاش'}
+                  </Label>
+                  <Input
+                    value={profile.quickPayValue || ""}
+                    onChange={(e) => updateProfile({ quickPayValue: e.target.value })}
+                    className="bg-emerald-500/10 border-emerald-500/20 text-emerald-300 text-left ltr rounded-xl h-10 text-sm placeholder:text-emerald-800/60"
+                    placeholder={profile.quickPayType === 'instapay' ? 'https://ipn.eg/S/yourlink' : '010XXXXXXXX'}
+                    dir="ltr"
+                  />
+                  <p className="text-[10px] text-white/30">
+                    {profile.quickPayType === 'instapay'
+                      ? 'الرابط المختصر لحساب الإنستاباي الخاص بك'
+                      : 'رقم الهاتف المسجل على فودافون كاش'}
+                  </p>
+                </motion.div>
+              )}
             </CardContent>
           </Card>
 

@@ -20,6 +20,8 @@ export type ProfileData = {
   views?: number;
   linkClicks?: string;
   userId?: string | null;
+  quickPayType?: 'instapay' | 'vodafone_cash' | null;
+  quickPayValue?: string | null;
 };
 
 interface ProfileContextType {

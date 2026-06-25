@@ -34,6 +34,8 @@ const profiles = pgTable("profiles", {
   isDirectRedirect: boolean("is_direct_redirect").default(false),
   directUrl: text("direct_url"),
   linkClicks: text("link_clicks").default("{}"),
+  quickPayType: text("quick_pay_type"),
+  quickPayValue: text("quick_pay_value"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -107,6 +109,8 @@ class DatabaseStorage {
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_direct_redirect BOOLEAN DEFAULT FALSE`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direct_url TEXT`); } catch(e){}
       try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS link_clicks TEXT DEFAULT '{}'`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS quick_pay_type TEXT`); } catch(e){}
+      try { await db.execute(sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS quick_pay_value TEXT`); } catch(e){}
 
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS leads (
@@ -379,6 +383,8 @@ app.post("/api/profiles", async (req, res) => {
             customDomain: data.customDomain || null,
             isDirectRedirect: data.isDirectRedirect === true,
             directUrl: data.directUrl || null,
+            quickPayType: data.quickPayType || null,
+            quickPayValue: data.quickPayValue || null,
         }).onConflictDoUpdate({
             target: profiles.id,
             set: {
@@ -390,6 +396,8 @@ app.post("/api/profiles", async (req, res) => {
                 customDomain: data.customDomain || null,
                 isDirectRedirect: data.isDirectRedirect === true,
                 directUrl: data.directUrl || null,
+                quickPayType: data.quickPayType || null,
+                quickPayValue: data.quickPayValue || null,
             }
         });
         res.json({ id: data.id, success: true });
