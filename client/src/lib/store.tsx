@@ -15,6 +15,11 @@ export type ProfileData = {
   links: SocialLink[];
   theme: string;
   customDomain: string;
+  isDirectRedirect?: boolean;
+  directUrl?: string;
+  views?: number;
+  linkClicks?: string;
+  userId?: string | null;
 };
 
 interface ProfileContextType {

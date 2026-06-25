@@ -31,6 +31,11 @@ export default function Preview({ params }: { params?: { id?: string } }) {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  // Lead Generation form states
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", phone: "", email: "", message: "" });
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+
   // Check for data or id param in URL
   useEffect(() => {
     const dataParam = searchParams.get('data');
