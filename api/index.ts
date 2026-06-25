@@ -163,6 +163,22 @@ class DatabaseStorage {
     return result[0];
   }
 
+  async deleteUser(userId: string) {
+    const db = await this.getDb();
+    try {
+      // Manual cascade delete to avoid any DB constraint errors
+      const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, userId));
+      for (const p of userProfiles) {
+        await db.delete(leads).where(eq(leads.profileId, p.id));
+        await db.delete(profiles).where(eq(profiles.id, p.id));
+      }
+      await db.delete(users).where(eq(users.id, userId));
+    } catch(e) {
+      console.error("Manual delete cascade error:", e);
+      throw e;
+    }
+  }
+
   async updateProfile(id: string, updates: any) {
     const db = await this.getDb();
     const result = await db.update(profiles).set(updates).where(eq(profiles.id, id)).returning();
@@ -316,6 +332,20 @@ app.post("/api/users", async (req, res) => {
     }
 });
 
+app.delete("/api/users/:id", async (req, res) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    try {
+        const adminUser = await storage.getUser(req.session.userId);
+        if (!adminUser?.isAdmin && req.session.userId !== "emergency-admin") {
+            return res.status(403).json({ message: "Forbidden" });
+        }
+        await storage.deleteUser(req.params.id);
+        res.json({ message: "User deleted successfully" });
+    } catch (e: any) {
+        res.status(500).json({ message: e.message });
+    }
+});
+
 app.get("/api/profiles/:userId/user", async (req, res) => {
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     try {
@@ -424,40 +454,47 @@ app.get("/p/:id", async (req, res) => {
     try {
         let profile = await storage.getProfile(req.params.id);
         
-        // If the card is unowned, redirect immediately to activation
-        if (profile && profile.userId === null) {
-            return res.redirect(`/login?activate=${req.params.id}`);
-        }
-
-        // Fetch the real profile for the owner
-        if (profile && profile.userId !== null) {
-            const db = await storage.getDb();
-            const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, profile.userId));
-            if (userProfiles.length > 0) {
-                const realProfile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
-                profile = realProfile;
+        if (profile) {
+            // If the card is unowned, redirect immediately to activation
+            if (profile.userId === null) {
+                return res.redirect(`/login?activate=${req.params.id}`);
             }
-        }
 
-        // Fast Mode check (SAFE with Try-Catch)
-        try {
-            if (profile && profile.isDirectRedirect === true && profile.directUrl) {
-                let redirectUrl = profile.directUrl.trim();
-                if (redirectUrl) {
-                    if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
-                        redirectUrl = 'https://' + redirectUrl;
-                    }
-                    return res.redirect(redirectUrl);
+            // Fetch the real profile for the owner
+            if (profile.userId !== null) {
+                const db = await storage.getDb();
+                const userProfiles = await db.select().from(profiles).where(eq(profiles.userId, profile.userId));
+                if (userProfiles.length > 0) {
+                    const realProfile = userProfiles.find(p => p.name !== "Unclaimed Card") || userProfiles[0];
+                    profile = realProfile;
                 }
             }
-        } catch (fastModeErr) {
-            console.error("Fast mode routing error:", fastModeErr);
-        }
 
+            // Fast Mode check (SAFE with Try-Catch)
+            try {
+                if (profile.isDirectRedirect === true && typeof profile.directUrl === 'string') {
+                    let redirectUrl = profile.directUrl.trim();
+                    if (redirectUrl.length > 0) {
+                        if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+                            redirectUrl = 'https://' + redirectUrl;
+                        }
+                        return res.redirect(redirectUrl);
+                    }
+                }
+            } catch (fastModeErr) {
+                console.error("Fast mode routing error:", fastModeErr);
+            }
+        }
     } catch (e) {
+        console.error("Scan Error:", e);
         // Ignore DB errors and fallback to normal redirect
     }
-    res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+    
+    try {
+        return res.redirect(`/preview?id=${req.params.id}&embedded=true`);
+    } catch (fallbackErr) {
+        return res.status(500).send("System Error during redirect");
+    }
 });
 
 app.get("/api/profiles/:id", async (req, res) => {
