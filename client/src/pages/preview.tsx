@@ -754,18 +754,18 @@ export default function Preview({ params }: { params?: { id?: string } }) {
           </Button>
         </div>
 
-        {/* Save Contact Button */}
-        <div className="flex gap-2 mb-2" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+        {/* Save Contact & Share Buttons */}
+        <div className="relative z-20 flex gap-2 mb-2" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
           <Button
             variant="outline"
-            className="flex-1 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10"
+            className="flex-1 rounded-xl bg-white/10 border-white/20 text-white hover:bg-white/20 font-semibold"
             onClick={handleSaveContact}
           >
             <UserPlus className="w-4 h-4 ml-2" />
             {t.saveContact}
           </Button>
           <Button
-            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
+            className="flex-1 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold"
             onClick={handleShare}
             disabled={isSaving}
           >
@@ -775,10 +775,10 @@ export default function Preview({ params }: { params?: { id?: string } }) {
         </div>
 
         {/* Exchange Contacts Button & Modal */}
-        <div className="w-full mb-6">
+        <div className="relative z-20 w-full mb-6">
           <Dialog open={leadModalOpen} onOpenChange={setLeadModalOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold h-11 shadow-lg shadow-purple-500/20">
+              <Button className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold h-11 shadow-lg shadow-purple-500/30">
                 <Send className="w-4 h-4 ml-2" />
                 شارك بياناتك معي
               </Button>
