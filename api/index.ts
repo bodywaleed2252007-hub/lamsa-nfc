@@ -367,7 +367,7 @@ app.post("/api/profiles", async (req, res) => {
         if (!data.id) {
             data.id = randomUUID();
         }
-        const linksStr = Array.isArray(data.links) ? JSON.stringify(data.links) : data.links;
+        const linksStr = Array.isArray(data.links) ? JSON.stringify(data.links) : (data.links || "[]");
         await db.insert(profiles).values({
             id: data.id,
             userId: req.session?.userId && req.session.userId !== "emergency-admin" ? req.session.userId : null,
@@ -375,20 +375,27 @@ app.post("/api/profiles", async (req, res) => {
             bio: data.bio || "",
             avatarUrl: data.avatarUrl || "",
             theme: data.theme || "glass",
-            links: linksStr || "[]",
+            links: linksStr,
+            customDomain: data.customDomain || null,
+            isDirectRedirect: data.isDirectRedirect === true,
+            directUrl: data.directUrl || null,
         }).onConflictDoUpdate({
             target: profiles.id,
             set: {
-                name: data.name,
-                bio: data.bio,
-                avatarUrl: data.avatarUrl,
-                theme: data.theme,
+                name: data.name || "My Card",
+                bio: data.bio || "",
+                avatarUrl: data.avatarUrl || "",
+                theme: data.theme || "glass",
                 links: linksStr,
+                customDomain: data.customDomain || null,
+                isDirectRedirect: data.isDirectRedirect === true,
+                directUrl: data.directUrl || null,
             }
         });
-        res.json({ id: data.id });
+        res.json({ id: data.id, success: true });
     } catch (e: any) {
-        res.status(500).json({ message: e.message });
+        console.error("Save profile error:", e);
+        res.status(500).json({ message: e.message || "Save failed" });
     }
 });
 
