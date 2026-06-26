@@ -53,7 +53,7 @@ export default function Landing() {
           <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center">
             <Zap className="w-4 h-4 text-primary" />
           </div>
-          <span className="text-white font-black text-lg tracking-tight">لمسة</span>
+          <span className="text-white font-black text-lg tracking-tight">Togou</span>
         </div>
 
         {user && (

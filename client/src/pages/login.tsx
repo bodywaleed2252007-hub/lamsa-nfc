@@ -75,7 +75,7 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
             <Sparkles className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-black text-white" dir="rtl">لمسة للبطاقات الذكية</h1>
+          <h1 className="text-2xl font-black text-white" dir="rtl">Togou للبطاقات الذكية</h1>
           <p className="text-white/50 text-sm mt-1" dir="rtl">
             {activateCardId ? "سجل دخولك أو أنشئ حساباً لربط بطاقتك الجديدة" : "تسجيل الدخول للمتابعة"}
           </p>
@@ -156,7 +156,7 @@ export default function Login() {
               {!isLogin && !activateCardId && (
                 <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 rounded-lg p-3 mb-4 text-center">
                   <AlertCircle className="w-5 h-5 shrink-0" />
-                  <span>عذراً، يجب امتلاك بطاقة لمسة وتفعيلها أولاً لإنشاء حساب جديد</span>
+                  <span>عذراً، يجب امتلاك بطاقة Togou وتفعيلها أولاً لإنشاء حساب جديد</span>
                 </div>
               )}
 

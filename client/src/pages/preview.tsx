@@ -941,7 +941,7 @@ export default function Preview({ params }: { params?: { id?: string } }) {
           <span>GET YOUR OWN CARD</span>
         </a>
         <footer className="text-xs text-white/20 font-medium">
-          Designed by lamsa
+          Designed by Togou
         </footer>
       </div>
     </div>

@@ -290,7 +290,7 @@ export default function Admin() {
               </div>
               لوحة الإدارة
             </h1>
-            <p className="text-white/40 text-sm mt-1 mr-11">إدارة مستخدمي لمسة NFC</p>
+            <p className="text-white/40 text-sm mt-1 mr-11">إدارة مستخدمي Togou NFC</p>
           </div>
           <div className="flex items-center gap-2">
             <Button onClick={handleGenerateCards} disabled={generatingCards} variant="secondary" size="sm" className="gap-2 rounded-xl text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20">
