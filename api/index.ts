@@ -10,6 +10,7 @@ import { scrypt, randomBytes, timingSafeEqual, randomUUID } from "crypto";
 import { promisify } from "util";
 import JSZip from "jszip";
 import QRCode from "qrcode";
+import { renderStandaloneProfileHtml } from "./card-render";
 
 const scryptAsync = promisify(scrypt);
 const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
@@ -748,7 +749,7 @@ app.post("/api/profiles/generate", requireAdmin, async (req, res) => {
   }
 });
 
-app.get("/p/:id", publicReadLimiter, activationLimiter, async (req, res) => {
+const handleCardRoute = async (req: Request, res: Response) => {
   try {
     let profile = await storage.getProfile(String(req.params.id));
 
@@ -770,14 +771,27 @@ app.get("/p/:id", publicReadLimiter, activationLimiter, async (req, res) => {
         const target = safeHttpUrl(profile.directUrl);
         if (target) return res.redirect(target);
       }
+
+      // Increment views in background safely
+      try {
+        await db.update(profiles).set({ views: sql`COALESCE(${profiles.views}, 0) + 1` }).where(eq(profiles.id, profile.id));
+      } catch (e) {}
+
+      // Return standalone ultra-fast HTML directly to the browser
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=10, s-maxage=60, stale-while-revalidate=300");
+      return res.send(renderStandaloneProfileHtml(profile));
     }
   } catch (e) {
     console.error("Scan Error:", e);
-    // Ignore DB errors and fall back to normal redirect
   }
 
-  return res.redirect(`/preview?id=${encodeURIComponent(String(req.params.id))}&embedded=true`);
-});
+  // Fallback if profile not found
+  return res.redirect(`/?notfound=${encodeURIComponent(String(req.params.id))}`);
+};
+
+app.get("/p/:id", publicReadLimiter, activationLimiter, handleCardRoute);
+app.get("/c/:id", publicReadLimiter, activationLimiter, handleCardRoute);
 
 app.get("/api/profiles/:id", publicReadLimiter, async (req, res) => {
   try {

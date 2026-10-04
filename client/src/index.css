@@ -36,10 +36,14 @@
 @layer utilities {
   .glass-panel {
     @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
+    -webkit-backdrop-filter: blur(24px);
+    transform: translateZ(0);
   }
   
   .glass-card {
     @apply bg-white/5 backdrop-blur-md border border-white/5 shadow-lg transition-all duration-300;
+    -webkit-backdrop-filter: blur(16px);
+    transform: translateZ(0);
   }
   
   .glass-card:hover {
@@ -49,4 +53,17 @@
   .text-glow {
     text-shadow: 0 0 20px currentColor;
   }
+
+  .ios-smooth {
+    -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
+    transform: translateZ(0);
+  }
 }
+
+html, body {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
