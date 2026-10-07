@@ -48,8 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ username, password }),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || "Login failed");
+      const text = await res.text();
+      let err: any = {};
+      try { err = JSON.parse(text); } catch {}
+      throw new Error(err.message || `خطأ في الاتصال بالخادم (${res.status}). يرجى التحقق من إعدادات Vercel.`);
     }
     const data = await res.json();
     setUser(data);
@@ -63,8 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ username, password, activateId }),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || "Registration failed");
+      const text = await res.text();
+      let err: any = {};
+      try { err = JSON.parse(text); } catch {}
+      throw new Error(err.message || `خطأ في الاتصال بالخادم (${res.status}). يرجى التحقق من إعدادات Vercel.`);
     }
     const data = await res.json();
     setUser(data);
