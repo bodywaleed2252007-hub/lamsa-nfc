@@ -22,6 +22,27 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [tokenStatus, setTokenStatus] = useState<{ valid?: boolean; message?: string; status?: string } | null>(null);
+  const [verifyingToken, setVerifyingToken] = useState(false);
+
+  useEffect(() => {
+    if (activateCardId) {
+      setVerifyingToken(true);
+      fetch(`/api/activation/${encodeURIComponent(activateCardId)}`)
+        .then(res => res.json())
+        .then(data => {
+          setTokenStatus(data);
+          if (!data.valid && data.message) {
+            setError(data.message);
+          }
+        })
+        .catch(() => {
+          setTokenStatus({ valid: false, message: "فشل التحقق من كود التفعيل" });
+        })
+        .finally(() => setVerifyingToken(false));
+    }
+  }, [activateCardId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -36,7 +57,8 @@ export default function Login() {
             headers: { "Content-Type": "application/json" }
           });
           if (!claimRes.ok) {
-            console.error("Failed to claim card:", await claimRes.json());
+            const claimErr = await claimRes.json().catch(() => ({}));
+            console.error("Failed to claim card:", claimErr);
           }
         }
       } else {
@@ -146,6 +168,13 @@ export default function Login() {
                 </div>
               )}
 
+              {activateCardId && tokenStatus?.valid && (
+                <div className="flex items-center gap-2 text-emerald-400 text-sm bg-emerald-400/10 rounded-lg p-3">
+                  <Sparkles className="w-4 h-4 shrink-0 text-emerald-400" />
+                  <span>بطاقة صالحة للتفعيل ✅</span>
+                </div>
+              )}
+
               {error && (
                 <div className="flex items-center gap-2 text-red-400 text-sm bg-red-400/10 rounded-lg p-3">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -163,10 +192,10 @@ export default function Login() {
               <Button
                 type="submit"
                 data-testid="button-login"
-                disabled={loading || (!isLogin && !activateCardId)}
+                disabled={loading || verifyingToken || (!isLogin && (!activateCardId || tokenStatus?.valid === false))}
                 className="w-full h-11 bg-primary hover:bg-primary/90 font-bold rounded-xl"
               >
-                {loading ? (
+                {loading || verifyingToken ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   isLogin ? "دخول" : "إنشاء الحساب"

@@ -43,7 +43,20 @@ export const insertProfileSchema = createInsertSchema(profiles).pick({
   isEditable: true,
 });
 
+export const activationCards = pgTable("activation_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: text("status").notNull().default("available"),
+  profileId: varchar("profile_id").references(() => profiles.id, { onDelete: 'set null' }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+  activatedAt: text("activated_at"),
+  disabledAt: text("disabled_at"),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
+export type ActivationCard = typeof activationCards.$inferSelect;
+

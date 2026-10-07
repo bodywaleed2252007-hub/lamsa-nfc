@@ -37,6 +37,9 @@ function Router() {
       {/* Preview is always public — NFC card links must work without login */}
       <Route path="/preview" component={Preview} />
       <Route path="/p/:id" component={Preview} />
+      <Route path="/activate/:token">
+        {(params) => <Redirect to={`/login?activate=${encodeURIComponent(params.token)}`} />}
+      </Route>
       <Route path="/login" component={Login} />
       <Route path="/admin">
         <ProtectedRoute component={Admin} />

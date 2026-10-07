@@ -6,11 +6,12 @@ import { eq, sql, isNull } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, integer } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { scrypt, randomBytes, timingSafeEqual, randomUUID } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, randomUUID, createHash } from "crypto";
 import { promisify } from "util";
 import JSZip from "jszip";
 import QRCode from "qrcode";
 import { renderStandaloneProfileHtml } from "./card-render";
+import { activationCards } from "../shared/schema";
 
 const scryptAsync = promisify(scrypt);
 const isProd = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
@@ -75,6 +76,16 @@ async function comparePasswords(supplied: string, stored: string) {
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return hashedBuf.length === suppliedBuf.length && timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+/** Hash an activation token for storage. Raw tokens are never stored in the DB. */
+function hashActivationToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/** Generate a cryptographically random, URL-safe activation token (256 bits). */
+function generateActivationToken(): string {
+  return randomBytes(32).toString('base64url');
 }
 
 /** Strip password hash (and anything sensitive) before sending a user to the client. */
@@ -192,6 +203,22 @@ class DatabaseStorage {
 
       try { await db.execute(sql`ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_profile_id_fkey`); } catch (e) {}
       try { await db.execute(sql`ALTER TABLE leads ADD CONSTRAINT leads_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE`); } catch (e) {}
+
+      // --- Activation cards inventory table ---
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS activation_cards (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+          token_hash TEXT NOT NULL UNIQUE,
+          status TEXT NOT NULL DEFAULT 'available',
+          profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+          user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          activated_at TEXT,
+          disabled_at TEXT
+        );
+      `);
+      try { await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_activation_cards_status ON activation_cards(status)`); } catch (e) {}
+      try { await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_activation_cards_token_hash ON activation_cards(token_hash)`); } catch (e) {}
 
       // Admin bootstrap comes ONLY from environment variables. No hardcoded fallback.
       const adminUser = process.env.ADMIN_USERNAME;
@@ -324,6 +351,12 @@ app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Content Security Policy
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self';");
+  // Strict-Transport-Security in production
+  if (isProd) {
+    res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+  }
   next();
 });
 
@@ -331,16 +364,45 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
+import csurf from "csurf";
+
+// CSRF protection – double submit cookie strategy
+const csrfProtection = csurf({
+  cookie: {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "strict",
+    // The secret is derived from SESSION_SECRET automatically by csurf
+  },
+});
+
 app.use(
   cookieSession({
-    name: 'session',
+    name: "session",
     keys: [SESSION_SECRET],
     maxAge: 7 * 24 * 60 * 60 * 1000,
     secure: isProd,
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: "lax",
   })
 );
+
+// Expose a route for the client to fetch the CSRF token
+app.get("/api/csrf-token", (req, res) => {
+  // csurf populates req.csrfToken()
+  res.json({ csrfToken: req.csrfToken() });
+});
+
+// Apply CSRF protection to state‑changing routes (POST, PATCH, DELETE)
+// Global CSRF protection applied to all state‑changing methods (POST, PATCH, DELETE)
+app.use((req, res, next) => {
+  const safeMethods = ["GET", "HEAD", "OPTIONS"];
+  if (safeMethods.includes(req.method)) return next();
+  // Exempt authentication routes (login, register, logout) which may not have CSRF token yet
+  if (req.path.startsWith("/api/auth")) return next();
+  // Token endpoint is GET and already excluded by safeMethods
+  return csrfProtection(req, res, next);
+});
 
 storage.ensureAdminExists().catch(e => console.error(e));
 
@@ -520,9 +582,31 @@ app.post("/api/auth/register", registerLimiter, activationLimiter, async (req: R
   }
   try {
     const db = await storage.getDb();
-    const profile = await storage.getProfile(activateId);
-    if (!profile || profile.userId !== null) {
-      return res.status(403).json({ message: "عذراً، كود التفعيل غير صالح أو تم استخدامه مسبقاً" });
+
+    // Check activation_cards first using token hash
+    const tokenHash = hashActivationToken(activateId);
+    const cardRows = await db.select().from(activationCards).where(eq(activationCards.tokenHash, tokenHash));
+    const card = cardRows[0];
+
+    let targetProfileId: string | null = null;
+    let isLegacy = false;
+
+    if (card) {
+      if (card.status === 'disabled') {
+        return res.status(403).json({ message: "عذراً، تم تعطيل هذه البطاقة" });
+      }
+      if (card.status === 'activated' || card.userId) {
+        return res.status(403).json({ message: "عذراً، كود التفعيل تم استخدامه مسبقاً" });
+      }
+      targetProfileId = card.profileId;
+    } else {
+      // Legacy fallback: check profile ID
+      const profile = await storage.getProfile(activateId);
+      if (!profile || profile.userId !== null) {
+        return res.status(403).json({ message: "عذراً، كود التفعيل غير صالح أو تم استخدامه مسبقاً" });
+      }
+      targetProfileId = profile.id;
+      isLegacy = true;
     }
 
     const existing = await storage.getUserByUsername(username);
@@ -532,14 +616,38 @@ app.post("/api/auth/register", registerLimiter, activationLimiter, async (req: R
     // isAdmin is NEVER taken from the request body here.
     const newUser = await storage.createUser({ username, password, isAdmin: false, isActive: true });
 
-    // Atomic claim: only succeeds if the card is still unowned.
-    const claimed = await db.update(profiles)
-      .set({ userId: newUser.id })
-      .where(sql`${profiles.id} = ${activateId} AND ${profiles.userId} IS NULL`)
-      .returning();
-    if (claimed.length === 0) {
-      await storage.deleteUser(newUser.id);
-      return res.status(403).json({ message: "عذراً، كود التفعيل غير صالح أو تم استخدامه مسبقاً" });
+    if (!isLegacy && card) {
+      // Atomic claim in activation_cards table
+      const claimedCard = await db.update(activationCards)
+        .set({
+          status: 'activated',
+          userId: newUser.id,
+          activatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(sql`${activationCards.id} = ${card.id} AND ${activationCards.status} = 'available'`)
+        .returning();
+
+      if (claimedCard.length === 0) {
+        await storage.deleteUser(newUser.id);
+        return res.status(403).json({ message: "عذراً، كود التفعيل تم استخدامه مسبقاً" });
+      }
+
+      // Also set profile userId
+      if (targetProfileId) {
+        await db.update(profiles)
+          .set({ userId: newUser.id })
+          .where(sql`${profiles.id} = ${targetProfileId}`);
+      }
+    } else if (targetProfileId) {
+      // Atomic claim in profiles table (legacy cards)
+      const claimed = await db.update(profiles)
+        .set({ userId: newUser.id })
+        .where(sql`${profiles.id} = ${targetProfileId} AND ${profiles.userId} IS NULL`)
+        .returning();
+      if (claimed.length === 0) {
+        await storage.deleteUser(newUser.id);
+        return res.status(403).json({ message: "عذراً، كود التفعيل غير صالح أو تم استخدامه مسبقاً" });
+      }
     }
 
     req.session!.userId = newUser.id;
@@ -701,40 +809,108 @@ app.post("/api/profiles", requireAuth, async (req, res) => {
   }
 });
 
-// Admin endpoint to generate unowned cards
+// --- ACTIVATION & INVENTORY SYSTEM ---
+
+app.get("/api/activation/:token", activationLimiter, async (req, res) => {
+  try {
+    const token = req.params.token;
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ valid: false, message: "رمز التفعيل مطلوب" });
+    }
+    const db = await storage.getDb();
+    const tokenHash = hashActivationToken(token);
+
+    const cardRows = await db.select().from(activationCards).where(eq(activationCards.tokenHash, tokenHash));
+    const card = cardRows[0];
+
+    if (card) {
+      if (card.status === 'disabled') {
+        return res.status(200).json({ valid: false, status: 'disabled', message: "عذراً، تم تعطيل هذه البطاقة" });
+      }
+      if (card.status === 'activated' || card.userId) {
+        return res.status(200).json({ valid: false, status: 'activated', message: "تم تفعيل هذه البطاقة مسبقاً" });
+      }
+      return res.status(200).json({
+        valid: true,
+        status: 'available',
+      });
+    }
+
+    // Legacy fallback check: profile ID
+    const profile = await storage.getProfile(token);
+    if (profile) {
+      if (profile.userId !== null) {
+        return res.status(200).json({ valid: false, status: 'activated', message: "تم تفعيل هذه البطاقة مسبقاً" });
+      }
+      return res.status(200).json({ valid: true, status: 'available' });
+    }
+
+    return res.status(200).json({ valid: false, status: 'invalid', message: "رمز التفعيل غير صالح" });
+  } catch (e) {
+    fail(res, e, "checkActivationToken");
+  }
+});
+
+app.get("/activate/:token", (req, res) => {
+  const token = req.params.token;
+  res.redirect(`/login?activate=${encodeURIComponent(token)}`);
+});
+
+// Admin endpoint to generate unowned cards with activation tokens
 app.post("/api/profiles/generate", requireAdmin, async (req, res) => {
   try {
     const db = await storage.getDb();
     const count = Math.min(Math.max(parseInt(String(req.body?.count ?? "1"), 10) || 1, 1), 500);
-    const newCards = [];
-    for (let i = 0; i < count; i++) {
-      // 12 hex chars (48 bits) instead of 6: makes activation codes infeasible to guess.
-      const newId = randomBytes(6).toString("hex");
-      const newCard = await db.insert(profiles).values({
-        id: newId,
-        userId: null,
-        name: "Unclaimed Card",
-        bio: "",
-        avatarUrl: "",
-        theme: "glass",
-        links: "[]",
-      }).returning();
-      newCards.push(newCard[0]);
-    }
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers.host || 'localhost:5000';
+    const baseUrl = `${protocol}://${host}`;
+
+    // Execute the entire batch generation inside a single PostgreSQL transaction
+    const newGeneratedCards = await db.transaction(async (tx) => {
+      const cardsList = [];
+      for (let i = 0; i < count; i++) {
+        const profileId = randomBytes(6).toString("hex");
+        const rawToken = generateActivationToken();
+        const tokenHash = hashActivationToken(rawToken);
+
+        await tx.insert(profiles).values({
+          id: profileId,
+          userId: null,
+          name: "Unclaimed Card",
+          bio: "",
+          avatarUrl: "",
+          theme: "glass",
+          links: "[]",
+        });
+
+        const card = await tx.insert(activationCards).values({
+          tokenHash,
+          status: 'available',
+          profileId,
+          userId: null,
+        }).returning();
+
+        const activateUrl = `${baseUrl}/activate/${rawToken}`;
+        cardsList.push({
+          id: card[0].id,
+          profileId,
+          rawToken,
+          activateUrl,
+        });
+      }
+      return cardsList;
+    });
 
     if (req.query.format === 'zip') {
       const zip = new JSZip();
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-      const host = req.headers.host || 'localhost:5000';
-      const baseUrl = `${protocol}://${host}`;
 
-      for (const c of newCards) {
-        const cardUrl = `${baseUrl}/p/${c.id}`;
-        const qrBuffer = await QRCode.toBuffer(cardUrl, { errorCorrectionLevel: 'H', width: 400 });
-        zip.file(`card_${c.id}.png`, qrBuffer);
+      for (const item of newGeneratedCards) {
+        const qrBuffer = await QRCode.toBuffer(item.activateUrl, { errorCorrectionLevel: 'H', width: 400 });
+        zip.file(`card_${item.profileId}.png`, qrBuffer);
       }
 
-      const linksText = newCards.map((c: any) => `${baseUrl}/p/${c.id}`).join('\n');
+      const linksText = newGeneratedCards.map((c: any) => c.activateUrl).join('\n');
       zip.file('links.txt', linksText);
 
       const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
@@ -743,9 +919,108 @@ app.post("/api/profiles/generate", requireAdmin, async (req, res) => {
       return;
     }
 
-    res.json({ success: true, count, cards: newCards });
+    res.json({ success: true, count, cards: newGeneratedCards });
   } catch (e) {
     fail(res, e, "generateCards");
+  }
+});
+
+// Admin endpoints for card inventory
+app.get("/api/admin/cards", requireAdmin, async (req, res) => {
+  try {
+    const db = await storage.getDb();
+    const statusFilter = typeof req.query.status === "string" ? req.query.status : null;
+    const search = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : null;
+
+    let query = db.select({
+      id: activationCards.id,
+      tokenHash: activationCards.tokenHash,
+      status: activationCards.status,
+      profileId: activationCards.profileId,
+      userId: activationCards.userId,
+      createdAt: activationCards.createdAt,
+      activatedAt: activationCards.activatedAt,
+      disabledAt: activationCards.disabledAt,
+      username: users.username,
+    })
+    .from(activationCards)
+    .leftJoin(users, eq(activationCards.userId, users.id));
+
+    let cardsList = await query;
+
+    if (statusFilter) {
+      cardsList = cardsList.filter((c: any) => c.status === statusFilter);
+    }
+
+    if (search) {
+      cardsList = cardsList.filter((c: any) =>
+        c.id.toLowerCase().includes(search) ||
+        (c.profileId && c.profileId.toLowerCase().includes(search)) ||
+        (c.username && c.username.toLowerCase().includes(search))
+      );
+    }
+
+    res.json(cardsList);
+  } catch (e) {
+    fail(res, e, "getAdminCards");
+  }
+});
+
+app.get("/api/admin/cards/stats", requireAdmin, async (_req, res) => {
+  try {
+    const db = await storage.getDb();
+    const allCards = await db.select().from(activationCards);
+    const stats = {
+      total: allCards.length,
+      available: allCards.filter((c: any) => c.status === "available").length,
+      activated: allCards.filter((c: any) => c.status === "activated").length,
+      disabled: allCards.filter((c: any) => c.status === "disabled").length,
+    };
+    res.json(stats);
+  } catch (e) {
+    fail(res, e, "getCardStats");
+  }
+});
+
+app.patch("/api/admin/cards/:id/disable", requireAdmin, async (req, res) => {
+  try {
+    const db = await storage.getDb();
+    const cardId = String(req.params.id);
+    const updated = await db.update(activationCards)
+      .set({
+        status: "disabled",
+        disabledAt: sql`CURRENT_TIMESTAMP`,
+      })
+      .where(sql`${activationCards.id} = ${cardId} AND ${activationCards.status} = 'available'`)
+      .returning();
+
+    if (updated.length === 0) {
+      return res.status(400).json({ message: "Card cannot be disabled (it is not available)" });
+    }
+    res.json({ success: true, card: updated[0] });
+  } catch (e) {
+    fail(res, e, "disableCard");
+  }
+});
+
+app.patch("/api/admin/cards/:id/enable", requireAdmin, async (req, res) => {
+  try {
+    const db = await storage.getDb();
+    const cardId = String(req.params.id);
+    const updated = await db.update(activationCards)
+      .set({
+        status: "available",
+        disabledAt: null,
+      })
+      .where(sql`${activationCards.id} = ${cardId} AND ${activationCards.status} = 'disabled'`)
+      .returning();
+
+    if (updated.length === 0) {
+      return res.status(400).json({ message: "Card cannot be enabled (it is not disabled)" });
+    }
+    res.json({ success: true, card: updated[0] });
+  } catch (e) {
+    fail(res, e, "enableCard");
   }
 });
 
@@ -822,17 +1097,56 @@ app.get("/api/profiles/:id", publicReadLimiter, async (req, res) => {
 app.post("/api/profiles/:id/claim", requireAuth, activationLimiter, async (req, res) => {
   try {
     const db = await storage.getDb();
-    const profile = await storage.getProfile(String(req.params.id));
+    const token = String(req.params.id);
+    const userId = res.locals.user.id;
+
+    // Check activation_cards first using token hash
+    const tokenHash = hashActivationToken(token);
+    const cardRows = await db.select().from(activationCards).where(eq(activationCards.tokenHash, tokenHash));
+    const card = cardRows[0];
+
+    if (card) {
+      if (card.status === 'disabled') {
+        return res.status(403).json({ message: "Card is disabled" });
+      }
+      if (card.status === 'activated' || card.userId) {
+        return res.status(403).json({ message: "Card is already owned by someone else" });
+      }
+
+      const updatedCard = await db.update(activationCards)
+        .set({
+          status: 'activated',
+          userId: userId,
+          activatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(sql`${activationCards.id} = ${card.id} AND ${activationCards.status} = 'available'`)
+        .returning();
+
+      if (updatedCard.length === 0) {
+        return res.status(403).json({ message: "Card is already owned by someone else" });
+      }
+
+      if (card.profileId) {
+        await db.update(profiles)
+          .set({ userId: userId })
+          .where(sql`${profiles.id} = ${card.profileId}`);
+      }
+
+      return res.json({ success: true, card: updatedCard[0] });
+    }
+
+    // Legacy profile claim fallback
+    const profile = await storage.getProfile(token);
     if (!profile) {
       return res.status(404).json({ message: "Card not found" });
     }
     if (profile.userId) {
       return res.status(403).json({ message: "Card is already owned by someone else" });
     }
-    // Atomic: only claims if still unowned.
+
     const updated = await db.update(profiles)
-      .set({ userId: res.locals.user.id })
-      .where(sql`${profiles.id} = ${String(req.params.id)} AND ${profiles.userId} IS NULL`)
+      .set({ userId: userId })
+      .where(sql`${profiles.id} = ${token} AND ${profiles.userId} IS NULL`)
       .returning();
     if (updated.length === 0) {
       return res.status(403).json({ message: "Card is already owned by someone else" });

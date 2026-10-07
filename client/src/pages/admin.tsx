@@ -56,6 +56,18 @@ interface ManagedUser {
   isProfileEditable?: boolean;
 }
 
+interface ActivationCardItem {
+  id: string;
+  tokenHash: string;
+  status: 'available' | 'activated' | 'disabled';
+  profileId?: string;
+  userId?: string;
+  username?: string;
+  createdAt?: string;
+  activatedAt?: string;
+  disabledAt?: string;
+}
+
 export default function Admin() {
   const { user, logout, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -64,6 +76,12 @@ export default function Admin() {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [generatingCards, setGeneratingCards] = useState(false);
+
+  const [cards, setCards] = useState<ActivationCardItem[]>([]);
+  const [cardStats, setCardStats] = useState<{ total: number; available: number; activated: number; disabled: number }>({ total: 0, available: 0, activated: 0, disabled: 0 });
+  const [activeTab, setActiveTab] = useState<'users' | 'inventory'>('users');
+  const [cardSearch, setCardSearch] = useState("");
+  const [cardStatusFilter, setCardStatusFilter] = useState<string>("all");
 
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -79,6 +97,21 @@ export default function Admin() {
   const [changePasswordUser, setChangePasswordUser] = useState<ManagedUser | null>(null);
   const [newPassValue, setNewPassValue] = useState("");
   const [changingPass, setChangingPass] = useState(false);
+
+  const fetchCards = async () => {
+    try {
+      const resStats = await fetch("/api/admin/cards/stats", { credentials: "include" });
+      if (resStats.ok) {
+        setCardStats(await resStats.json());
+      }
+      const resCards = await fetch("/api/admin/cards", { credentials: "include" });
+      if (resCards.ok) {
+        setCards(await resCards.json());
+      }
+    } catch (e) {
+      console.error("Failed to fetch card inventory:", e);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -104,6 +137,7 @@ export default function Admin() {
         }));
         setProfiles(profileData);
       }
+      await fetchCards();
     } finally {
       setLoadingUsers(false);
     }
@@ -194,6 +228,40 @@ export default function Admin() {
       setGeneratingCards(false);
     }
   };
+
+  const handleToggleCardStatus = async (c: ActivationCardItem) => {
+    const action = c.status === 'available' ? 'disable' : 'enable';
+    const confirmMsg = c.status === 'available' ? 'هل أنت تأكد من تعطيل هذه البطاقة؟' : 'هل أنت تأكد من إعادة تفعيل هذه البطاقة؟';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(`/api/admin/cards/${c.id}/${action}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      if (res.ok) {
+        fetchCards();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || "فشل تغيير حالة البطاقة");
+      }
+    } catch (e: any) {
+      alert("خطأ: " + e.message);
+    }
+  };
+
+  const filteredCards = useMemo(() => {
+    return cards.filter(c => {
+      const matchesSearch = !cardSearch ||
+        c.id.toLowerCase().includes(cardSearch.toLowerCase()) ||
+        (c.profileId && c.profileId.toLowerCase().includes(cardSearch.toLowerCase())) ||
+        (c.username && c.username.toLowerCase().includes(cardSearch.toLowerCase()));
+
+      const matchesStatus = cardStatusFilter === "all" || c.status === cardStatusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [cards, cardSearch, cardStatusFilter]);
 
   const handleUpdateDirect = async () => {
     if (!directRedirectUser) return;
@@ -313,61 +381,166 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: "إجمالي المستخدمين", value: stats.total, icon: <Users className="w-5 h-5 text-blue-400" /> },
-            { label: "نشطون", value: stats.active, icon: <UserCheck className="w-5 h-5 text-green-400" /> },
-            { label: "موقوفون", value: stats.inactive, icon: <UserX className="w-5 h-5 text-red-400" /> },
-            { label: "مشرفون", value: stats.admins, icon: <Crown className="w-5 h-5 text-yellow-400" /> },
-          ].map((stat, i) => (
-            <Card key={i} className="bg-white/4 border-white/8">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="p-2 bg-white/5 rounded-lg">{stat.icon}</div>
-                </div>
-                <div className="text-3xl font-black text-white">{stat.value}</div>
-                <div className="text-xs text-white/40 mt-1">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Dashboard Tabs Header */}
+        <div className="flex bg-white/5 p-1 rounded-xl mb-6" dir="rtl">
+          <button
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-md' : 'text-white/60 hover:text-white'}`}
+            onClick={() => setActiveTab('users')}
+          >
+            إدارة المستخدمين ({users.length})
+          </button>
+          <button
+            className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'inventory' ? 'bg-primary text-white shadow-md' : 'text-white/60 hover:text-white'}`}
+            onClick={() => setActiveTab('inventory')}
+          >
+            مخزون البطاقات ({cardStats.total})
+          </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4">
-          <h2 className="text-lg font-bold text-white">المستخدمون</h2>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <Input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="ابحث..."
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-9 w-full sm:w-48 rounded-xl"
-              />
+        {activeTab === 'users' ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {[
+                { label: "إجمالي المستخدمين", value: stats.total, icon: <Users className="w-5 h-5 text-blue-400" /> },
+                { label: "نشطون", value: stats.active, icon: <UserCheck className="w-5 h-5 text-green-400" /> },
+                { label: "موقوفون", value: stats.inactive, icon: <UserX className="w-5 h-5 text-red-400" /> },
+                { label: "مشرفون", value: stats.admins, icon: <Crown className="w-5 h-5 text-yellow-400" /> },
+              ].map((stat, i) => (
+                <Card key={i} className="bg-white/4 border-white/8">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="p-2 bg-white/5 rounded-lg">{stat.icon}</div>
+                    </div>
+                    <div className="text-3xl font-black text-white">{stat.value}</div>
+                    <div className="text-xs text-white/40 mt-1">{stat.label}</div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 rounded-xl">
-                  <UserPlus className="w-4 h-4" />
-                  إضافة
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-zinc-900 border-white/10 text-white" dir="rtl">
-                <DialogHeader>
-                  <DialogTitle className="text-white">إضافة مستخدم جديد</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-4">
-                  <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="اسم المستخدم" className="bg-white/10 border-white/20" required />
-                  <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="كلمة المرور" className="bg-white/10 border-white/20" required />
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="adminCheck" checked={newIsAdmin} onChange={e => setNewIsAdmin(e.target.checked)} />
-                    <Label htmlFor="adminCheck">صلاحيات مشرف</Label>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={creating}>{creating ? "جاري..." : "إنشاء"}</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4">
+              <h2 className="text-lg font-bold text-white">المستخدمون</h2>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-none">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="ابحث..."
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-9 w-full sm:w-48 rounded-xl"
+                  />
+                </div>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2 rounded-xl">
+                      <UserPlus className="w-4 h-4" />
+                      إضافة
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-zinc-900 border-white/10 text-white" dir="rtl">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">إضافة مستخدم جديد</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreate} className="space-y-4">
+                      <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="اسم المستخدم" className="bg-white/10 border-white/20" required />
+                      <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="كلمة المرور" className="bg-white/10 border-white/20" required />
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="adminCheck" checked={newIsAdmin} onChange={e => setNewIsAdmin(e.target.checked)} />
+                        <Label htmlFor="adminCheck">صلاحيات مشرف</Label>
+                      </div>
+                      <Button type="submit" className="w-full" disabled={creating}>{creating ? "جاري..." : "إنشاء"}</Button>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+              {[
+                { label: "إجمالي البطاقات", value: cardStats.total, icon: <Zap className="w-5 h-5 text-blue-400" /> },
+                { label: "متاحة للتفعيل", value: cardStats.available, icon: <UserCheck className="w-5 h-5 text-emerald-400" /> },
+                { label: "مفعلة", value: cardStats.activated, icon: <ShieldCheck className="w-5 h-5 text-purple-400" /> },
+                { label: "معطلة", value: cardStats.disabled, icon: <UserX className="w-5 h-5 text-red-400" /> },
+              ].map((stat, i) => (
+                <Card key={i} className="bg-white/4 border-white/8">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="p-2 bg-white/5 rounded-lg">{stat.icon}</div>
+                    </div>
+                    <div className="text-3xl font-black text-white">{stat.value}</div>
+                    <div className="text-xs text-white/40 mt-1">{stat.label}</div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center mb-4">
+              <h2 className="text-lg font-bold text-white">مخزون البطاقات</h2>
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <select
+                  value={cardStatusFilter}
+                  onChange={e => setCardStatusFilter(e.target.value)}
+                  className="bg-zinc-900 border border-white/10 text-white rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="all">كل الحالات</option>
+                  <option value="available">متاحة (Available)</option>
+                  <option value="activated">مفعلة (Activated)</option>
+                  <option value="disabled">معطلة (Disabled)</option>
+                </select>
+                <div className="relative flex-1 sm:flex-none">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Input
+                    value={cardSearch}
+                    onChange={e => setCardSearch(e.target.value)}
+                    placeholder="ابحث..."
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30 pr-9 w-full sm:w-48 rounded-xl"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-8">
+              {filteredCards.length === 0 ? (
+                <div className="text-center text-white/40 py-8">لا توجد بطاقات مطابقة</div>
+              ) : (
+                filteredCards.map((c) => (
+                  <Card key={c.id} className="bg-white/4 border-white/8">
+                    <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-white font-mono text-sm">ID: {c.profileId || c.id.slice(0, 8)}</p>
+                          <Badge className={
+                            c.status === 'available' ? 'bg-emerald-500/20 text-emerald-400' :
+                            c.status === 'activated' ? 'bg-purple-500/20 text-purple-400' : 'bg-red-500/20 text-red-400'
+                          }>
+                            {c.status === 'available' ? 'متاحة' : c.status === 'activated' ? 'مفعلة' : 'معطلة'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-white/40 mt-1">
+                          {c.username ? `المستخدم: ${c.username}` : 'غير مخصصة لمستخدم بعد'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {c.status !== 'activated' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleToggleCardStatus(c)}
+                            className={c.status === 'available' ? 'text-red-400/80 hover:text-red-400' : 'text-emerald-400/80 hover:text-emerald-400'}
+                          >
+                            {c.status === 'available' ? 'تعطيل البطاقة' : 'إعادة التفعيل'}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </>
+        )}
 
         <Dialog open={!!directRedirectUser} onOpenChange={open => !open && setDirectRedirectUser(null)}>
           <DialogContent className="bg-zinc-900 border-white/10 text-white" dir="rtl">
